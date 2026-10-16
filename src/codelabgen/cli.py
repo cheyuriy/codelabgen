@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -11,12 +12,15 @@ from typing import Annotated, Any
 import typer
 from pydantic import ValidationError
 
-from codelabgen import checks, diagrams, glossary, snippets, toc
+from codelabgen import checks, diagrams, glossary, research, snippets, toc
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
+from codelabgen import fetch as fetchmod
+from codelabgen import github as gh
 from codelabgen import record as recordings
 from codelabgen import site as sitemod
-from codelabgen.course import Course, CourseNotFound
+from codelabgen import sources as srcmod
+from codelabgen.course import Course, CourseNotFound, atomic_write
 from codelabgen.curriculum import CurriculumError
 from codelabgen.doctor import check_tools
 from codelabgen.init import InitError, init_course, plugin_root
@@ -43,6 +47,16 @@ site_app = typer.Typer(no_args_is_help=True, help="The course website (MkDocs)."
 app.add_typer(glossary_app, name="glossary")
 app.add_typer(diagrams_app, name="diagrams")
 app.add_typer(site_app, name="site")
+sources_app = typer.Typer(no_args_is_help=True, help="The source registry and review sheet.")
+github_app = typer.Typer(
+    no_args_is_help=True, help="GitHub research (gh, GITHUB_TOKEN or anonymous)."
+)
+repo_app = typer.Typer(no_args_is_help=True, help="Clones of the technology's repositories.")
+config_app = typer.Typer(no_args_is_help=True, help="Course settings.")
+app.add_typer(sources_app, name="sources")
+app.add_typer(github_app, name="github")
+app.add_typer(repo_app, name="repo")
+app.add_typer(config_app, name="config")
 app.add_typer(curriculum_app, name="curriculum")
 app.add_typer(scaffold_app, name="scaffold")
 app.add_typer(snippets_app, name="snippets")
@@ -114,6 +128,8 @@ def doctor(as_json: Annotated[bool, typer.Option("--json")] = False) -> None:
                 mark = "MISSING (required)" if r.tool.required else "missing"
                 detail = f"disables: {r.tool.feature}"
             typer.echo(f"{r.tool.command:<10} {mark:<18} {detail}")
+    if not as_json:
+        typer.echo(f"{'github':<10} {gh.access().mode:<18} {gh.access().detail}")
     if any(r.tool.required and not r.usable for r in results):
         raise typer.Exit(1)
 
@@ -573,6 +589,208 @@ def commit_cmd(
     typer.echo(head.stdout.strip())
 
 
+# --- research: fetch / github / repo / pkg-info / transcript ------------------------------
+
+
+@app.command("fetch")
+def fetch_cmd(
+    urls: Annotated[list[str], typer.Argument(help="One or more URLs")],
+    course: CourseOpt = None,
+    refresh: Annotated[bool, typer.Option(help="Fetch again even if cached")] = False,
+):
+    """Download pages (HTML, Markdown, PDF) into .codelabgen/cache as Markdown; print JSON."""
+    found = Course.find(course)
+    results = []
+    for url in urls:
+        try:
+            page = fetchmod.fetch(found, url, refresh=refresh)
+            results.append(
+                {
+                    "url": url,
+                    "final_url": page.final_url,
+                    "title": page.title,
+                    "path": str(page.path.relative_to(found.root)),
+                    "chars": page.chars,
+                    "cached": page.cached,
+                }
+            )
+        except fetchmod.FetchError as exc:
+            results.append({"url": url, "error": str(exc)})
+    emit(results)
+    if all("error" in r for r in results):
+        raise typer.Exit(1)
+
+
+@app.command("llms-txt")
+def llms_txt_cmd(site: str, course: CourseOpt = None):
+    """Fetch llms.txt / llms-full.txt of a docs site when they exist; print JSON."""
+    found = Course.find(course)
+    pages = fetchmod.llms_txt(found, site)
+    emit(
+        [
+            {"url": p.url, "path": str(p.path.relative_to(found.root)), "chars": p.chars}
+            for p in pages
+        ]
+    )
+
+
+@app.command("transcript")
+def transcript_cmd(
+    url: str,
+    course: CourseOpt = None,
+    langs: Annotated[str, typer.Option(help="Subtitle languages for yt-dlp")] = "en.*,ru.*",
+):
+    """Save a talk's subtitles as text in the cache (yt-dlp; via uvx when not installed)."""
+    found = Course.find(course)
+    path = research.transcript(found, url, langs)
+    typer.echo(str(path.relative_to(found.root)))
+
+
+@app.command("pkg-info")
+def pkg_info_cmd(
+    ecosystem: Annotated[str, typer.Argument(help="pypi, npm, crates or go")],
+    name: str,
+):
+    """Latest version, release date and links from the package registry (JSON)."""
+    emit(research.pkg_info(ecosystem, name))
+
+
+@repo_app.command("clone")
+def repo_clone(
+    url: Annotated[str, typer.Argument(help="GitHub URL or owner/name")],
+    course: CourseOpt = None,
+    ref: Annotated[
+        str | None, typer.Option(help="Tag or branch; default: the pinned version")
+    ] = None,
+    package: Annotated[
+        str | None, typer.Option(help="Package name for monorepo tags like pkg==1.2.3")
+    ] = None,
+):
+    """Shallow-clone a repo into .codelabgen/repos at the pinned version's tag (JSON)."""
+    emit(research.clone(Course.find(course), url, ref, package))
+
+
+@github_app.command("meta")
+def github_meta(repos: list[str]):
+    """Stars, last push, license, topics of repositories (JSON)."""
+    emit([gh.repo_meta(research.repo_slug(r)) for r in repos])
+
+
+@github_app.command("repos")
+def github_repos(
+    query: str,
+    limit: Annotated[int, typer.Option()] = 20,
+    sort: Annotated[str, typer.Option(help="stars, updated or best-match")] = "stars",
+):
+    """Search repositories with GitHub search syntax (JSON)."""
+    emit(gh.search_repos(query, limit, None if sort == "best-match" else sort))
+
+
+@github_app.command("code")
+def github_code(query: str, limit: Annotated[int, typer.Option()] = 20):
+    """Search code, e.g. '"langgraph" filename:pyproject.toml' (JSON; needs auth)."""
+    emit(gh.search_code(query, limit))
+
+
+@github_app.command("issues")
+def github_issues(
+    repo: str,
+    course: CourseOpt = None,
+    query: Annotated[str, typer.Option(help="Extra search terms")] = "",
+    limit: Annotated[int, typer.Option()] = 20,
+    discussions: Annotated[bool, typer.Option(help="Discussions instead of issues")] = False,
+):
+    """Save the most-reacted issues (or discussions) as Markdown in the cache; print the path."""
+    found = Course.find(course)
+    slug = research.repo_slug(repo)
+    if discussions:
+        items, kind = gh.top_discussions(slug, limit), "discussions"
+    else:
+        items, kind = gh.top_issues(slug, query, limit), "issues"
+    name = f"{kind}-{slug.replace('/', '__')}" + (
+        f"-{hashlib.sha1(query.encode()).hexdigest()[:6]}" if query else ""
+    )
+    path = fetchmod.cache_dir(found) / f"{name}.md"
+    atomic_write(path, gh.issues_markdown(slug, items, kind))
+    emit({"path": str(path.relative_to(found.root)), "count": len(items)})
+
+
+# --- sources ----------------------------------------------------------------------------
+
+
+@sources_app.command("add")
+def sources_add(
+    course: CourseOpt = None,
+    json_text: Annotated[str | None, typer.Option("--json", help="Row(s) as JSON")] = None,
+    file: Annotated[Path | None, typer.Option(help="JSON lines file")] = None,
+):
+    """Add or merge sources (validated, URLs normalized, duplicates merged)."""
+    text = file.read_text() if file else (json_text or sys.stdin.read())
+    report = srcmod.add(Course.find(course), srcmod.rows_from_text(text))
+    emit({"added": report.added, "merged": report.merged})
+
+
+@sources_app.command("list")
+def sources_list(
+    course: CourseOpt = None,
+    status: Annotated[list[str] | None, typer.Option(help="Repeatable")] = None,
+    type_: Annotated[str | None, typer.Option("--type")] = None,
+    role: Annotated[str | None, typer.Option()] = None,
+    brief: Annotated[bool, typer.Option(help="Only id, type, score, url")] = False,
+):
+    """Print sources as JSON lines, optionally filtered."""
+    for s in srcmod.query(Course.find(course), status, type_, role):
+        if brief:
+            typer.echo(
+                json.dumps(
+                    {"id": s.id, "type": s.type, "score": s.score, "url": s.url}, ensure_ascii=False
+                )
+            )
+        else:
+            typer.echo(s.model_dump_json(exclude_none=True))
+
+
+@sources_app.command("render")
+def sources_render(course: CourseOpt = None):
+    """Write the review sheet .codelabgen/sources.md."""
+    found = Course.find(course)
+    path = srcmod.render(found)
+    counts: dict[str, int] = {}
+    for s in srcmod.load(found):
+        counts[s.type] = counts.get(s.type, 0) + 1
+    emit({"path": str(path.relative_to(found.root)), "by_type": counts})
+
+
+@sources_app.command("apply")
+def sources_apply(course: CourseOpt = None):
+    """Read the user's ticks and additions from sources.md into the registry."""
+    emit(srcmod.apply(Course.find(course)))
+
+
+# --- config -----------------------------------------------------------------------------
+
+CONFIG_KEYS = {"version", "language", "topic"}
+
+
+@config_app.command("show")
+def config_show(course: CourseOpt = None):
+    """Print the course config (JSON)."""
+    emit(Course.find(course).load_config().model_dump(mode="json"))
+
+
+@config_app.command("set")
+def config_set(key: str, value: str, course: CourseOpt = None):
+    """Set version, language or topic."""
+    if key not in CONFIG_KEYS:
+        fail(f"only {', '.join(sorted(CONFIG_KEYS))} can be set here")
+    found = Course.find(course)
+    config = found.load_config()
+    setattr(config, key, value)
+    found.save_config(config)
+    StateStore(found).log("config", key=key, value=value)
+    typer.echo(f"{key} = {value}")
+
+
 # --- schema -----------------------------------------------------------------------
 
 
@@ -608,7 +826,17 @@ def main() -> None:
     """Entry point: expected errors become a one-line message and exit code 2."""
     try:
         app()
-    except (StateError, InitError, CourseNotFound, CurriculumError, ScaffoldError) as exc:
+    except (
+        StateError,
+        InitError,
+        CourseNotFound,
+        CurriculumError,
+        ScaffoldError,
+        fetchmod.FetchError,
+        gh.GitHubError,
+        research.ResearchError,
+        srcmod.SourcesError,
+    ) as exc:
         typer.echo(f"error: {exc}", err=True)
         sys.exit(2)
     except ValidationError as exc:

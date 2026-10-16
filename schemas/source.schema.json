@@ -3,6 +3,8 @@
   "description": "One row of sources.jsonl.",
   "properties": {
     "id": {
+      "default": "",
+      "description": "Assigned by `codelabgen sources add` when empty",
       "title": "Id",
       "type": "string"
     },
@@ -45,6 +47,19 @@
       "title": "Title",
       "type": "string"
     },
+    "language": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Language of the source (ISO 639-1)",
+      "title": "Language"
+    },
     "version": {
       "anyOf": [
         {
@@ -55,6 +70,7 @@
         }
       ],
       "default": null,
+      "description": "Technology version the source targets",
       "title": "Version"
     },
     "date": {
@@ -67,15 +83,18 @@
         }
       ],
       "default": null,
+      "description": "Publication or last-update date, YYYY-MM-DD",
       "title": "Date"
     },
     "score": {
+      "description": "See the source-evaluation skill",
       "maximum": 1,
       "minimum": 0,
       "title": "Score",
       "type": "number"
     },
     "reason": {
+      "description": "Why this source is useful, one sentence",
       "title": "Reason",
       "type": "string"
     },
@@ -92,7 +111,6 @@
     }
   },
   "required": [
-    "id",
     "url",
     "type",
     "roles",

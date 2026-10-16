@@ -55,6 +55,7 @@ class Budgets(Model):
     fix_attempts: int = Field(5, ge=1, description="Verify-fix attempts before a lesson is blocked")
     review_rounds: int = Field(2, ge=0)
     parallel_modules: int = Field(2, ge=1)
+    sources_per_type: int = Field(8, ge=1, description="Most sources a hunter proposes per type")
 
 
 class Config(Model):
@@ -168,15 +169,16 @@ SourceRole = Literal["structure", "code-truth", "concepts", "pitfalls"]
 class Source(Model):
     """One row of sources.jsonl."""
 
-    id: str
+    id: str = Field("", description="Assigned by `codelabgen sources add` when empty")
     url: str
     type: SourceType
     roles: list[SourceRole] = Field(min_length=1)
     title: str
-    version: str | None = None
-    date: str | None = None
-    score: float = Field(ge=0, le=1)
-    reason: str
+    language: str | None = Field(None, description="Language of the source (ISO 639-1)")
+    version: str | None = Field(None, description="Technology version the source targets")
+    date: str | None = Field(None, description="Publication or last-update date, YYYY-MM-DD")
+    score: float = Field(ge=0, le=1, description="See the source-evaluation skill")
+    reason: str = Field(description="Why this source is useful, one sentence")
     status: Literal["proposed", "kept", "dropped", "user"] = "proposed"
 
 

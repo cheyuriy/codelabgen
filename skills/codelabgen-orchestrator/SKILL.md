@@ -8,14 +8,62 @@ user-invocable: false
 
 You drive course generation from the main session. Only you start subagents, and only you change course state (see the state-protocol skill). Workers do one job each and end with a status JSON.
 
-> This version covers **lesson production** (phase `lessons`) and **assembly** (phase `assembly`). Research and curriculum come in later milestones.
+> This version covers **research** (phases `init` to `gate_sources`), **lesson production** (`lessons`) and **assembly** (`assembly`). Topic extraction and curriculum design (phases `topics` to `gate_plan`) come in the next milestone.
+
+The phases, in order: `init → recon → sources → gate_sources → topics → curriculum → gate_plan → scaffold → lessons → assembly → done`. `codelabgen state show` tells you where a course is. Continue from there.
 
 ## Before you start
 
 1. Find the course: the directory from the command's arguments, `$CODELABGEN_COURSE`, or the current directory. Every CLI call below takes `--course <dir>`.
-2. `codelabgen doctor`: stop and tell the user if a required tool is missing. Docker must show `ok` if any lesson uses services.
-3. `codelabgen curriculum validate`, then `codelabgen state show`.
-4. `codelabgen env check`: if variables are missing, list them and ask the user to fill in `.env`. Don't produce lessons until it passes.
+2. `codelabgen doctor`: stop and tell the user if a required tool is missing. Docker must show `ok` if any lesson uses services. The `github` line shows how GitHub research will work (`gh`, token or anonymous).
+3. `codelabgen state show`.
+4. From the `lessons` phase on: `codelabgen curriculum validate` and `codelabgen env check`. If variables are missing, list them and ask the user to fill in `.env`. Don't produce lessons until it passes.
+
+## Research
+
+### Phase `init`: start a course
+
+`/codelabgen:new` gives you the topic, the target directory and optionally the language, the version and the user's own source URLs.
+
+1. The target directory must be given explicitly and must be outside the plugin directory. If it is missing, ask for it.
+2. `codelabgen init <dir> --topic "<topic>" --lang <lang> [--version <v>] [--source <url> …]`.
+3. `codelabgen state phase recon`.
+
+### Phase `recon`: what is this technology?
+
+1. Run **tech-scout** with the course directory, the topic and the version (if given).
+2. Read `.codelabgen/research/overview.md`. If the user gave no version, show the proposed one in a single line and record it: `codelabgen config set version <v>`. If the identity of the technology was ambiguous, confirm it with the user before going on.
+3. `codelabgen state phase sources`.
+
+### Phase `sources`: find sources
+
+1. Record the user's own sources first (`user_sources` in `codelabgen config show`): for each, `codelabgen sources add --json '{"url": …, "type": <best guess>, "roles": [<best guess>], "title": <url or page title>, "score": 1.0, "reason": "Provided by the user", "status": "user"}'`.
+2. Run one **source-hunter** per source type, **in parallel** (background agents), each with its skill:
+
+   | Type in the prompt | Skill |
+   |---|---|
+   | official-docs | `source-official-docs` |
+   | official-blog and release-notes (also writes deprecations.md) | `source-official-blog` |
+   | package-internals | `source-package-internals` |
+   | article | `source-articles` |
+   | github-repo | `source-github-repos` |
+   | qa | `source-qa` |
+   | paper-spec | `source-papers-specs` |
+   | talk-workshop | `source-talks-workshops` |
+   | university | `source-university` |
+   | book-course | `source-books-courses` |
+
+3. As hunters finish, give the user one line each (type, how many, any gap). A hunter that fails gets one retry. If it fails again, report the gap and move on.
+4. Check that `.codelabgen/research/deprecations.md` exists. If it doesn't, run the official-blog hunter again with only that task.
+5. `codelabgen sources render`, then `codelabgen state phase gate_sources`.
+
+### Phase `gate_sources`: the user reviews sources
+
+1. Tell the user the review sheet is ready: `.codelabgen/sources.md` (give the full path). Explain it in two sentences: ticked sources are used, they can untick or tick, and add URLs at the end. Summarize what was found per type, the strongest sources, and the gaps.
+2. Wait for the user. They can edit the file, or tell you their changes in the chat. For chat edits, update the ticks in `sources.md` yourself.
+3. When the user says it is done: `codelabgen sources apply` and report the result (kept, dropped, added). If the user added sources, run the matching hunter for each new one to check it, fill in a real title, type and roles, and re-add it (re-adding merges).
+4. Only when the user explicitly approves: `codelabgen state phase topics --approved`.
+5. In this version, stop here. Topic extraction and curriculum design are not built yet. Tell the user the sources are ready and what comes next.
 
 ## Lesson production
 

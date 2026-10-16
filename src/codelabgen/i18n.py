@@ -33,6 +33,7 @@ LABELS: dict[str, dict[str, str]] = {
         "first_used": "First used in",
         "toggle_dark": "Switch to dark mode",
         "toggle_light": "Switch to light mode",
+        "sources": "Sources",
     },
     "ru": {
         "contents": "Содержание",
@@ -64,6 +65,7 @@ LABELS: dict[str, dict[str, str]] = {
         "first_used": "Впервые в уроке",
         "toggle_dark": "Тёмная тема",
         "toggle_light": "Светлая тема",
+        "sources": "Источники",
     },
 }
 

@@ -51,5 +51,6 @@ codelabgen schema export   # after changing models.py
 ## Status
 
 - M0 (foundation): `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
+- M3 (research): `fetch` (HTML/Markdown/PDF cache), `llms-txt`, `transcript`, `pkg-info`, `repo clone` (pinned-version tag), `github meta/repos/code/issues`, `sources add/list/render/apply`, `config`; tech-scout and source-hunter agents; source-evaluation and ten source-type skills; `/codelabgen:new`, `/codelabgen:sources`.
 - M2 (assembly and visuals): `toc` (READMEs, nav, `run.sh`), `site build/serve`, `glossary`, `diagrams render`, `record`, `check all`, `commit`; the `site-assembly` skill; `/codelabgen:build`.
 - M1 (lesson pipeline): `curriculum`, `scaffold`, `verify`, `snippets`, `check snippets`, `env`; six lesson agents and their skills; the orchestrator skill (lesson production); `/codelabgen:lesson`. Test course: `tests/fixtures/make-m1-course.sh <dir>`.

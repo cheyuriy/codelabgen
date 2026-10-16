@@ -21,6 +21,13 @@
           "minimum": 1,
           "title": "Parallel Modules",
           "type": "integer"
+        },
+        "sources_per_type": {
+          "default": 8,
+          "description": "Most sources a hunter proposes per type",
+          "minimum": 1,
+          "title": "Sources Per Type",
+          "type": "integer"
         }
       },
       "title": "Budgets",

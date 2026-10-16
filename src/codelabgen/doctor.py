@@ -31,7 +31,7 @@ TOOLS = [
     Tool("asciinema", "terminal recordings"),
     Tool("agg", "converting terminal recordings to GIF"),
     Tool("node", "Mermaid and LaTeX checks (mmdc, katex via npx)"),
-    Tool("yt-dlp", "talk transcripts"),
+    Tool("yt-dlp", "talk transcripts (without it, `uvx yt-dlp` is used)"),
 ]
 
 
