@@ -2,7 +2,7 @@
 
 {{ lesson.node.summary }}
 {% if lesson.node.objectives %}
-## What you will learn
+## {{ labels.what_you_learn }}
 {% for objective in lesson.node.objectives %}
 - {{ objective }}
 {%- endfor %}

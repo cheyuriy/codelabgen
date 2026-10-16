@@ -19,10 +19,11 @@ One or two sentences: what the example does and which idea it shows.
 Link to the notes: [Конспект](notes.md).
 
 ## Как запустить                              ← how to run
-Commands, in a bash block, from the lesson directory:
-  cd <module>/<lesson dir>
-  uv run python -m <package>
-(plus `docker compose up -d <service>` from the course root when the lesson needs a service)
+From the course root: `./run.sh <id>` (it loads .env, starts services, syncs and runs),
+and `./run.sh test <id>` for the tests. Then the manual way, for readers who want to
+see the steps: `docker compose up -d --wait <service>` if needed, one-time
+`uv sync --all-packages` in the module directory, then `uv run …` in the lesson
+directory. Say which directory each command runs in.
 
 ## Что изменилось с урока X                   ← only when the example extends an earlier lesson
 The delta from the spec, as a short list with links to the regions below.
@@ -87,6 +88,10 @@ Turn the spec's `experiments` into a "what to try" section. For each one: what t
 
    </details>
 ```
+
+Each experiment starts from the lesson's original code. When an experiment changes the code, end its explanation with a reminder to undo the change (for example `git checkout -- src/` or "верните код как было") before the next one.
+
+**Verify what you predict.** Run each experiment in a scratch copy of the lesson directory (outside the course) and describe what really happens, not what the spec expected. If the outcome differs from the spec's `experiments` entry, correct that entry in `.codelabgen/lessons/<id>/spec.yaml` as well, so the spec stays the source of truth for later lessons.
 
 ## Syntax that works on GitHub and the site
 

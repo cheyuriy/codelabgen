@@ -22,6 +22,7 @@ from codelabgen import env as envmod
 from codelabgen import services
 from codelabgen.course import Course, atomic_write
 from codelabgen.curriculum import Lesson
+from codelabgen.i18n import labels
 from codelabgen.models import Curriculum, CurriculumNode
 from codelabgen.state import StateStore
 
@@ -181,7 +182,8 @@ def scaffold_lesson_dir(
     tests.mkdir(exist_ok=True)
     readme = lesson_dir / "README.md"
     if not readme.exists():
-        create(course, report, readme, render("lesson_readme.md.j2", lesson=lesson))
+        text = labels(course.load_config().language)
+        create(course, report, readme, render("lesson_readme.md.j2", lesson=lesson, labels=text))
 
     spec = envmod.load_spec(course, lesson.id)
     lesson_vars = [

@@ -52,6 +52,14 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 - Only GitHub-and-site syntax: no `!!!`, content tabs, code annotations or `--8<--`. Math uses `$…$` and `$$…$$`.
 - Relative links resolve.
 
+## Checking claims by running code
+
+Running code is the best way to check a claim, but never change the lesson or shared state while doing it:
+
+- Work in a scratch copy of the lesson directory outside the course (`cp -r <lesson dir> /tmp/…`), with the module's environment: `env -u VIRTUAL_ENV uv run --project <module dir> …`.
+- For services, use a temporary database or key prefix and drop it afterwards. If you must touch the course's own data, restore it exactly and say so in the review.
+- Spec entries that turned out wrong (for example an experiment's predicted outcome) are a `[spec]` item: name the entry and the verified behaviour.
+
 ## Verdict
 
 - **pass:** nothing that would mislead or confuse a learner. Small polish issues may still be listed for later.
@@ -77,7 +85,7 @@ Rework from: readalong        # the earliest part that must change: code | reada
 - [notes] …
 ```
 
-Each item is tagged `[code]`, `[readalong]` or `[notes]`. **Rework from** names the earliest part with a must-fix item: a code change also forces the read-along and notes to be refreshed. Omit it for a pass.
+Each item is tagged `[code]`, `[readalong]`, `[notes]` or `[spec]`. `[spec]` items never block a pass: the orchestrator corrects the spec itself. **Rework from** names the earliest part with a must-fix item: a code change also forces the read-along and notes to be refreshed. Omit it for a pass.
 
 End with the status JSON from the state-protocol skill, adding `"verdict"` and `"rework_from"`:
 

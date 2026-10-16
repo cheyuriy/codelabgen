@@ -37,6 +37,7 @@ def lesson_dir(course, name="1.1-hello-graph"):
         ("Что изменилось с урока 1.1", "что-изменилось-с-урока-11"),
         ("The `route()` function!", "the-route-function"),
         ("Read-along", "read-along"),
+        ("path_map", "path_map"),
     ],
 )
 def test_github_slug(heading, slug):

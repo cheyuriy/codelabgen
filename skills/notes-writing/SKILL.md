@@ -53,6 +53,7 @@ The course has a shared glossary (`GLOSSARY.md`). On the site, every use of a te
 - **Link the first use** of each term in the notes to its entry. Get the link target from `codelabgen glossary link "<term>" --from <lesson dir>/docs/notes.md --course <dir>`.
 - Check `codelabgen glossary list` first. Don't redefine terms that earlier lessons introduced, but you may link to them.
 - Definitions: one or two sentences, self-contained, without Markdown links.
+- **Never use an everyday word as a term or alias.** Tooltips attach to every exact occurrence on the site, in every lesson. A term like "Поток" (thread) with aliases "поток", "потока" would tooltip unrelated uses of the word ("поток данных"). Use the specific form instead: `thread`, `thread_id`, "поток (thread)". Distinctive technical words such as `checkpointer`, `reducer`, `StateSnapshot` and their inflections are fine.
 
 ## Diagrams, math, callouts
 

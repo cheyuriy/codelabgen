@@ -51,6 +51,8 @@ The reviewer returns `rework_from`. Move the lesson back so the right workers ru
 
 The CLI refuses once the review budget is used up. Then show the user the open items from `review.md` and ask whether to accept the lesson as it is (`codelabgen state set <id> reviewed`) or block it.
 
+After any review, apply the `[spec]` items yourself: edit `.codelabgen/lessons/<id>/spec.yaml` so it matches the verified behaviour (usually an experiment's expected outcome), then `codelabgen state log spec-fixed --lesson <id>`. Later lessons build on these specs.
+
 Every worker in a rework round must read `.codelabgen/lessons/<id>/review.md` and fix its own tagged items. Say so in its prompt.
 
 ### Parallel modules
@@ -59,7 +61,7 @@ When `state next` returns lessons from different modules, run their pipelines si
 
 ## Assembly
 
-When `codelabgen state next` reports that all lessons are done, follow the assembly procedure in the site-assembly skill: glossary, `toc`, `check all`, `site build`, commit, phase `done`.
+When `codelabgen state next` reports that all lessons are done, say so and offer to assemble the course (`/codelabgen:build`). When the user agrees, or when you run as part of `/codelabgen:resume`, follow the assembly procedure in the site-assembly skill: glossary, `toc`, `check all`, `site build`, commit, phase `done`.
 
 ## Starting a worker
 

@@ -16,7 +16,9 @@ IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 def github_slug(text: str) -> str:
     """The anchor GitHub gives a heading (and the site, via pymdownx.slugs case=lower)."""
     text = re.sub(r"<[^>]+>", "", text)  # inline HTML
-    text = re.sub(r"[`*_~]|\[|\]\([^)]*\)", "", text)  # emphasis, code, link targets
+    # Drop code ticks, emphasis stars, strikethrough and link targets. Underscores stay:
+    # GitHub and pymdownx.slugs both keep them (`path_map` -> #path_map).
+    text = re.sub(r"[`*~]|\[|\]\([^)]*\)", "", text)
     text = text.strip().lower()
     text = re.sub(r"[^\w\- ]", "", text)
     return text.replace(" ", "-")
