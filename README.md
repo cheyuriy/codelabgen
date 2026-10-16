@@ -39,4 +39,5 @@ codelabgen schema export   # after changing models.py
 
 ## Status
 
-M0 (foundation) is done: `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
+- M0 (foundation): `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
+- M1 (lesson pipeline): `curriculum`, `scaffold`, `verify`, `snippets`, `check snippets`, `env`; six lesson agents and their skills; the orchestrator skill (lesson production); `/codelabgen:lesson`. Test course: `tests/fixtures/make-m1-course.sh <dir>`.

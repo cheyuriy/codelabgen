@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 LESSON_ID_RE = re.compile(r"^[1-9]\d*(\.[1-9]\d*){0,2}$")
 
@@ -201,7 +201,18 @@ class EnvVar(Model):
     where_to_get: str | None = None
     scope: Literal["course", "lesson"] = "course"
     secret: bool = False
-    lessons: list[str] = Field(default_factory=list)
+    default: str | None = Field(
+        None, description="Value written to .env.example; never for secrets"
+    )
+    lessons: list[str] = Field(
+        default_factory=list, description="Lessons that need it; empty = every lesson"
+    )
+
+    @model_validator(mode="after")
+    def _no_secret_default(self) -> EnvVar:
+        if self.secret and self.default:
+            raise ValueError(f"{self.name}: secrets must not have a default value")
+        return self
 
 
 class ExampleRef(Model):
@@ -220,6 +231,9 @@ class CurriculumNode(Model):
     objectives: list[str] = Field(default_factory=list)
     prerequisites: list[str] = Field(default_factory=list)
     example: ExampleRef | None = None
+    services: list[str] = Field(
+        default_factory=list, description="Compose services the lesson uses"
+    )
     sources: list[str] = Field(default_factory=list)
     children: list[CurriculumNode] = Field(default_factory=list)
 
@@ -248,10 +262,14 @@ class Recording(Model):
 
 class LessonSpec(Model):
     id: str
-    scenario: str
-    files: list[str]
-    delta_from: str | None = None
-    run_cmd: str
+    title: str
+    scenario: str = Field(description="What the example does, in a few sentences")
+    files: list[str] = Field(description="Files the lesson creates, relative to the lesson dir")
+    delta_from: str | None = Field(None, description="Lesson whose code this one extends")
+    delta: list[str] = Field(default_factory=list, description="Changes relative to delta_from")
+    run_cmd: str = Field(description="Live run, executed in the lesson dir via `uv run`")
+    run_timeout_s: int = Field(300, ge=1, le=3600)
+    services: list[str] = Field(default_factory=list)
     tests: list[str] = Field(default_factory=list)
     experiments: list[str] = Field(default_factory=list)
     regions: list[str] = Field(default_factory=list)
@@ -263,7 +281,18 @@ class LessonSpec(Model):
 
 
 class StepResult(Model):
-    name: Literal["sync", "lint", "offline-tests", "live-run", "record", "diagrams", "snippets"]
+    name: Literal[
+        "env",
+        "services",
+        "sync",
+        "lint",
+        "format",
+        "offline-tests",
+        "live-run",
+        "snippets",
+        "record",
+        "diagrams",
+    ]
     exit_code: int
     duration_s: float
     log: str = Field(description="Path to the log file, relative to the run directory")
@@ -272,8 +301,10 @@ class StepResult(Model):
 class RunResult(Model):
     lesson: str
     started: datetime
+    run_dir: str
     steps: list[StepResult]
     passed: bool
+    failed_step: str | None = None
 
 
 # --- glossary.yaml ---------------------------------------------------------------

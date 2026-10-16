@@ -13,17 +13,17 @@ A codelabgen course is a directory with a hidden `.codelabgen/` folder. Its prog
 1. **Never edit `state.json` or `events.jsonl` with Edit, Write or shell redirection.** Use the commands below.
 2. **Pass the course explicitly** with `--course <dir>` (or set `CODELABGEN_COURSE`), unless the working directory is inside the course.
 3. **A non-zero exit is a refusal, not a glitch.** Exit code 2 prints `error: …` with the reason, for example a skipped stage or a used-up budget. Report it; don't retry the same command or work around it.
-4. **Only change the lessons you were given.** A worker agent touches the state of its own lesson only. Phases are changed by the orchestrator only.
+4. **Only the orchestrator changes state.** Worker agents (example-designer, code-author, …) never run `state set`, `fail`, `block`, `phase` or `register`. They do their work, may run read-only commands and `state log`, and report through the status JSON at the end. The orchestrator checks the result and moves the stage.
 
 ## Running the CLI
 
 codelabgen sessions run with the plugin's virtual environment activated, so `codelabgen` is on `PATH`. If it is not found, run it through uv instead:
 
 ```bash
-uv run --project <plugin root> codelabgen …
+uv run --project ${CLAUDE_PLUGIN_ROOT} codelabgen …
 ```
 
-`<plugin root>` is two levels above this skill's base directory.
+**Lesson commands need their own environment.** The lesson code has its own uv workspace per module. When you run `uv` for lesson code yourself, drop the plugin's environment first, or uv uses the wrong venv: `env -u VIRTUAL_ENV uv run …`. `codelabgen verify` does this for you.
 
 ## Lesson stages
 
@@ -33,15 +33,15 @@ Each lesson records the **last completed** stage:
 pending → spec → code → verified → readalong → notes → reviewed → done
 ```
 
-| Stage done | Who moves it to the next stage | Command when finished |
+| Stage done | Work that moves it to the next stage | The orchestrator then runs |
 |---|---|---|
 | `pending` | example-designer writes `lessons/<id>/spec.yaml` | `codelabgen state set <id> spec` |
 | `spec` | code-author writes the code and tests | `codelabgen state set <id> code` |
-| `code` | `codelabgen verify` passes (code-fixer repairs failures) | `codelabgen state set <id> verified` |
+| `code` | `codelabgen verify <id> --update-state` passes (code-fixer repairs failures) | nothing: verify sets `verified` or counts a failure |
 | `verified` | readalong-writer | `codelabgen state set <id> readalong` |
 | `readalong` | notes-writer | `codelabgen state set <id> notes` |
 | `notes` | lesson-reviewer, verdict pass | `codelabgen state set <id> reviewed` |
-| `reviewed` | orchestrator final checks | `codelabgen state set <id> done` |
+| `reviewed` | final checks | `codelabgen state set <id> done` |
 
 `codelabgen state stages` prints the same table as JSON.
 
@@ -91,7 +91,7 @@ Paths are relative to the course root.
 Finish with a short JSON block and nothing after it, so the orchestrator can parse it:
 
 ```json
-{"lesson": "1.2", "status": "ok", "stage": "code", "artifacts": ["1-foundations/1.2-state/src/l1_2_state/graph.py"], "notes": "one line, optional"}
+{"lesson": "1.2", "status": "ok", "stage": "code", "artifacts": ["1-basics/1.2-routing/src/l1_2_routing/graph.py"], "notes": "one line, optional"}
 ```
 
-`status` is `ok`, `failed` (the work could not be finished; say why in `notes`) or `needs-user` (a decision only the user can make). `stage` is the stage you set, or the current one if you set none.
+`status` is `ok`, `failed` (the work could not be finished; say why in `notes`) or `needs-user` (a decision only the user can make). `stage` is the stage your work completes; the orchestrator decides whether to record it.

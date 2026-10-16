@@ -5,7 +5,9 @@ description = "Deterministic helpers for the codelabgen Claude Code plugin"
 requires-python = ">=3.12"
 dependencies = [
     "filelock>=3.13",
+    "jinja2>=3.1.6",
     "pydantic>=2.7",
+    "python-dotenv>=1.2.4",
     "pyyaml>=6.0",
     "typer>=0.12",
 ]
@@ -25,6 +27,8 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 100
+# Skills and docs are prose; their code blocks are illustrations, not code to format.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

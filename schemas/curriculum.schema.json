@@ -45,6 +45,14 @@
           ],
           "default": null
         },
+        "services": {
+          "description": "Compose services the lesson uses",
+          "items": {
+            "type": "string"
+          },
+          "title": "Services",
+          "type": "array"
+        },
         "sources": {
           "items": {
             "type": "string"
@@ -107,7 +115,21 @@
           "title": "Secret",
           "type": "boolean"
         },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value written to .env.example; never for secrets",
+          "title": "Default"
+        },
         "lessons": {
+          "description": "Lessons that need it; empty = every lesson",
           "items": {
             "type": "string"
           },

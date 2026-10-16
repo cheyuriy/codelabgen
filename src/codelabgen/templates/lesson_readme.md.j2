@@ -1,0 +1,9 @@
+# {{ lesson.id }} {{ lesson.node.title }}
+
+{{ lesson.node.summary }}
+{% if lesson.node.objectives %}
+## What you will learn
+{% for objective in lesson.node.objectives %}
+- {{ objective }}
+{%- endfor %}
+{% endif %}

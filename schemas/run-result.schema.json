@@ -5,13 +5,16 @@
       "properties": {
         "name": {
           "enum": [
+            "env",
+            "services",
             "sync",
             "lint",
+            "format",
             "offline-tests",
             "live-run",
+            "snippets",
             "record",
-            "diagrams",
-            "snippets"
+            "diagrams"
           ],
           "title": "Name",
           "type": "string"
@@ -51,6 +54,10 @@
       "title": "Started",
       "type": "string"
     },
+    "run_dir": {
+      "title": "Run Dir",
+      "type": "string"
+    },
     "steps": {
       "items": {
         "$ref": "#/$defs/StepResult"
@@ -61,11 +68,24 @@
     "passed": {
       "title": "Passed",
       "type": "boolean"
+    },
+    "failed_step": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failed Step"
     }
   },
   "required": [
     "lesson",
     "started",
+    "run_dir",
     "steps",
     "passed"
   ],

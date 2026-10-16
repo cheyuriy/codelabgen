@@ -38,7 +38,21 @@
           "title": "Secret",
           "type": "boolean"
         },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value written to .env.example; never for secrets",
+          "title": "Default"
+        },
         "lessons": {
+          "description": "Lessons that need it; empty = every lesson",
           "items": {
             "type": "string"
           },
@@ -98,11 +112,17 @@
       "title": "Id",
       "type": "string"
     },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
     "scenario": {
+      "description": "What the example does, in a few sentences",
       "title": "Scenario",
       "type": "string"
     },
     "files": {
+      "description": "Files the lesson creates, relative to the lesson dir",
       "items": {
         "type": "string"
       },
@@ -119,11 +139,35 @@
         }
       ],
       "default": null,
+      "description": "Lesson whose code this one extends",
       "title": "Delta From"
     },
+    "delta": {
+      "description": "Changes relative to delta_from",
+      "items": {
+        "type": "string"
+      },
+      "title": "Delta",
+      "type": "array"
+    },
     "run_cmd": {
+      "description": "Live run, executed in the lesson dir via `uv run`",
       "title": "Run Cmd",
       "type": "string"
+    },
+    "run_timeout_s": {
+      "default": 300,
+      "maximum": 3600,
+      "minimum": 1,
+      "title": "Run Timeout S",
+      "type": "integer"
+    },
+    "services": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Services",
+      "type": "array"
     },
     "tests": {
       "items": {
@@ -163,6 +207,7 @@
   },
   "required": [
     "id",
+    "title",
     "scenario",
     "files",
     "run_cmd"
