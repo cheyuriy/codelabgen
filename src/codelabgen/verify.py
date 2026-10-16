@@ -7,6 +7,8 @@ Steps, stopping at the first failure:
   lint, format   ruff check / ruff format --check in the lesson dir
   offline-tests  pytest in the lesson dir
   live-run       the spec's run_cmd, with its timeout
+  record         terminal recordings listed in the spec (skipped without asciinema/agg)
+  diagrams       D2 / Graphviz sources rendered to SVG
   snippets       code regions copied into the lesson's Markdown
 
 Each step's output goes to `.codelabgen/runs/<id>/<timestamp>/<step>.log`, and
@@ -22,8 +24,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from codelabgen import curriculum as cur
+from codelabgen import diagrams, snippets
 from codelabgen import env as envmod
-from codelabgen import snippets
+from codelabgen import record as recordings
 from codelabgen.course import Course, atomic_write, dump_json
 from codelabgen.models import RunResult, StepResult, now
 from codelabgen.scaffold import lesson_services
@@ -114,6 +117,20 @@ def verify(course: Course, lesson_id: str, live: bool = True) -> RunResult:
         code, seconds, log = run_step(step, process_env)
         if not record(step.name, code, seconds, log):
             return finish(False)
+
+    if live:
+        recorded = recordings.record(course, lesson_id)
+        log = recorded.skipped and f"skipped: {recorded.skipped}\n" or ""
+        log += "".join(f"recorded {p.relative_to(course.root)}\n" for p in recorded.recorded)
+        log += "".join(f"problem: {p}\n" for p in recorded.problems)
+        if not record("record", 1 if recorded.problems else 0, 0, log or "nothing recorded\n"):
+            return finish(False)
+
+    rendered = diagrams.render(lesson_dir)
+    log = "".join(f"rendered {p.relative_to(course.root)}\n" for p in rendered.rendered)
+    log += "".join(f"problem: {p}\n" for p in rendered.problems)
+    if not record("diagrams", 1 if rendered.problems else 0, 0, log or "nothing to render\n"):
+        return finish(False)
 
     changed, problems = snippets.sync(lesson_dir)
     log = "".join(f"updated {p.relative_to(course.root)}\n" for p in changed)

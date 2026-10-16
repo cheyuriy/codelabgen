@@ -64,6 +64,16 @@ Show code only through snippet markers. `codelabgen snippets sync` fills them fr
 
 Quote the live run's real output from the latest passing verify run: `.codelabgen/runs/<id>/<latest>/live-run.log` (the part after the command header). Copy it exactly into a `text` code block, then explain what to notice in it. Never invent or "tidy" output. If the output depends on an LLM or on time, say that a run may differ.
 
+## Recordings
+
+If the spec lists `recordings`, the verify run saved them as `<lesson dir>/docs/generated/<name>.gif` (with a `.cast` next to it). Show each one where it helps, usually next to the real output:
+
+```markdown
+![Запуск: маршрутизация трёх обращений](generated/route-tickets.gif)
+```
+
+The path is relative to the read-along, so write it as `generated/<name>.gif`. Only link GIFs that exist. If verify logged "skipped" for `record`, show the text output alone.
+
 ## Experiments
 
 Turn the spec's `experiments` into a "what to try" section. For each one: what to change (a concrete edit), what you will observe, and why. Put the explanation in a collapsible block, so the reader can guess first:
@@ -86,4 +96,4 @@ Only these: plain Markdown, fenced code, Mermaid, `$…$` and `$$…$$` math, Gi
 
 1. `codelabgen snippets sync <id> --course <dir>`
 2. `codelabgen check snippets <id> --course <dir>` must print `ok`.
-3. Check that every relative link points to a file that exists.
+3. `codelabgen check links --course <dir>`, `check render` and `check math` report nothing for this lesson's files.

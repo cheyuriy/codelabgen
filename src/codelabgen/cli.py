@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated, Any
@@ -10,9 +11,11 @@ from typing import Annotated, Any
 import typer
 from pydantic import ValidationError
 
+from codelabgen import checks, diagrams, glossary, snippets, toc
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
-from codelabgen import snippets
+from codelabgen import record as recordings
+from codelabgen import site as sitemod
 from codelabgen.course import Course, CourseNotFound
 from codelabgen.curriculum import CurriculumError
 from codelabgen.doctor import check_tools
@@ -34,6 +37,12 @@ scaffold_app = typer.Typer(no_args_is_help=True, help="Create course and lesson 
 snippets_app = typer.Typer(no_args_is_help=True, help="Copy code regions into lesson Markdown.")
 check_app = typer.Typer(no_args_is_help=True, help="Consistency checks.")
 env_app = typer.Typer(no_args_is_help=True, help="Course and lesson environment variables.")
+glossary_app = typer.Typer(no_args_is_help=True, help="The course glossary.")
+diagrams_app = typer.Typer(no_args_is_help=True, help="D2 and Graphviz diagrams.")
+site_app = typer.Typer(no_args_is_help=True, help="The course website (MkDocs).")
+app.add_typer(glossary_app, name="glossary")
+app.add_typer(diagrams_app, name="diagrams")
+app.add_typer(site_app, name="site")
 app.add_typer(curriculum_app, name="curriculum")
 app.add_typer(scaffold_app, name="scaffold")
 app.add_typer(snippets_app, name="snippets")
@@ -340,24 +349,57 @@ def snippets_sync(lesson: Annotated[str | None, typer.Argument()] = None, course
         raise typer.Exit(1)
 
 
+def run_checks(found: Course, names: list[str]) -> None:
+    issues = []
+    for name in names:
+        issues += [f"[{name}] {issue}" for issue in checks.CHECKS[name](found)]
+    for issue in issues:
+        typer.echo(issue)
+    if issues:
+        typer.echo(f"{len(issues)} problem(s)", err=True)
+        raise typer.Exit(1)
+    typer.echo("ok")
+
+
 @check_app.command("snippets")
 def check_snippets(
     lesson: Annotated[str | None, typer.Argument()] = None, course: CourseOpt = None
 ):
     """Fail if a snippet points at a missing region or its copy is out of date."""
     found = Course.find(course)
-    issues = []
-    for _, path in lesson_dirs(found, lesson):
-        stale, problems = snippets.sync(path, write=False)
-        issues += [
-            f"{p.relative_to(found.root)}: out of date, run codelabgen snippets sync" for p in stale
-        ]
-        issues += [str(p) for p in problems]
+    if lesson is None:
+        run_checks(found, ["snippets"])
+        return
+    stale, problems = snippets.sync(
+        found.root / cur.find_lesson(cur.load(found), lesson).rel_dir, write=False
+    )
+    issues = [
+        f"{p.relative_to(found.root)}: out of date, run codelabgen snippets sync" for p in stale
+    ]
+    issues += [str(p) for p in problems]
     for issue in issues:
         typer.echo(issue)
     if issues:
         raise typer.Exit(1)
     typer.echo("ok")
+
+
+def _add_check(name: str) -> None:
+    def command(course: CourseOpt = None):
+        run_checks(Course.find(course), [name])
+
+    command.__doc__ = checks.CHECKS[name].__doc__ or f"Run the {name} check."
+    check_app.command(name)(command)
+
+
+for _name in ("structure", "links", "render", "math", "mermaid"):
+    _add_check(_name)
+
+
+@check_app.command("all")
+def check_all(course: CourseOpt = None):
+    """Run every check: structure, snippets, links, render, math, mermaid."""
+    run_checks(Course.find(course), list(checks.CHECKS))
 
 
 # --- env --------------------------------------------------------------------------
@@ -394,6 +436,141 @@ def env_list(course: CourseOpt = None):
             for item in cur.lessons(curriculum)
         }
     )
+
+
+# --- toc / site / glossary / diagrams / record / commit ---------------------------
+
+
+@app.command("toc")
+def toc_cmd(course: CourseOpt = None):
+    """Generate READMEs, mkdocs.yml (nav), run.sh, site assets and the glossary page."""
+    found = Course.find(course)
+    written = toc.generate(found)
+    for path in written:
+        typer.echo(f"wrote {path.relative_to(found.root)}")
+    if not written:
+        typer.echo("nothing changed")
+
+
+@site_app.command("build")
+def site_build(course: CourseOpt = None):
+    """Build the site into site/ (strict: warnings fail the build)."""
+    found = Course.find(course)
+    proc = sitemod.run(found, "build", [])
+    output = (proc.stdout or "") + (proc.stderr or "")
+    lines = [
+        ln for ln in output.splitlines() if "WARNING" in ln or "ERROR" in ln or "Aborted" in ln
+    ]
+    typer.echo("\n".join(lines) if lines else output.strip().splitlines()[-1] if output else "")
+    if proc.returncode != 0:
+        raise typer.Exit(1)
+    typer.echo(f"site built in {found.root / 'site'}")
+
+
+@site_app.command("serve")
+def site_serve(
+    course: CourseOpt = None,
+    addr: Annotated[str, typer.Option(help="host:port")] = "127.0.0.1:8000",
+):
+    """Serve the site with live reload."""
+    proc = sitemod.run(Course.find(course), "serve", ["--dev-addr", addr])
+    raise typer.Exit(proc.returncode)
+
+
+@glossary_app.command("add")
+def glossary_add(
+    term: str,
+    definition: Annotated[str, typer.Option(help="One or two sentences, course language")],
+    course: CourseOpt = None,
+    alias: Annotated[list[str] | None, typer.Option(help="Other forms, repeatable")] = None,
+    lesson: Annotated[str | None, typer.Option(help="Lesson that introduces the term")] = None,
+):
+    """Add a term (or update its definition) and rebuild GLOSSARY.md."""
+    found = Course.find(course)
+    entry, created = glossary.add(found, term, definition, alias, lesson)
+    glossary.build(found)
+    typer.echo(f"{'added' if created else 'updated'} {entry.term} (#{glossary.anchor(entry.term)})")
+
+
+@glossary_app.command("build")
+def glossary_build(course: CourseOpt = None):
+    """Rebuild GLOSSARY.md and the site's tooltip file."""
+    found = Course.find(course)
+    for path in glossary.build(found):
+        typer.echo(f"wrote {path.relative_to(found.root)}")
+
+
+@glossary_app.command("link")
+def glossary_link(
+    term: str,
+    from_file: Annotated[Path, typer.Option("--from", help="The Markdown file the link goes in")],
+    course: CourseOpt = None,
+):
+    """Print the relative link target for a term, e.g. ../../GLOSSARY.md#граф-состояний."""
+    found = Course.find(course)
+    try:
+        typer.echo(glossary.link(found, term, from_file))
+    except KeyError as exc:
+        fail(str(exc.args[0]))
+
+
+@glossary_app.command("list")
+def glossary_list(course: CourseOpt = None):
+    """Print (JSON) all glossary entries."""
+    emit([e.model_dump(exclude_none=True) for e in glossary.load(Course.find(course))])
+
+
+@diagrams_app.command("render")
+def diagrams_render(
+    lesson: Annotated[str | None, typer.Argument()] = None,
+    course: CourseOpt = None,
+    force: Annotated[bool, typer.Option(help="Re-render even if the SVG is newer")] = False,
+):
+    """Render D2 / Graphviz sources in docs/diagrams/ to SVG."""
+    found = Course.find(course)
+    problems = []
+    for _, path in lesson_dirs(found, lesson):
+        report = diagrams.render(path, force=force)
+        problems += report.problems
+        for svg in report.rendered:
+            typer.echo(f"rendered {svg.relative_to(found.root)}")
+    for problem in problems:
+        typer.echo(f"problem: {problem}", err=True)
+    if problems:
+        raise typer.Exit(1)
+
+
+@app.command("record")
+def record_cmd(lesson: str, course: CourseOpt = None):
+    """Record the lesson's terminal scenarios (asciinema) and convert them to GIF (agg)."""
+    found = Course.find(course)
+    report = recordings.record(found, lesson)
+    if report.skipped:
+        typer.echo(f"skipped: {report.skipped}")
+    for path in report.recorded:
+        typer.echo(f"recorded {path.relative_to(found.root)}")
+    for problem in report.problems:
+        typer.echo(f"problem: {problem}", err=True)
+    if report.problems:
+        raise typer.Exit(1)
+
+
+@app.command("commit")
+def commit_cmd(
+    message: Annotated[str, typer.Option("--message", "-m")],
+    course: CourseOpt = None,
+):
+    """Commit everything in the course repository (after a build or an extension)."""
+    found = Course.find(course)
+    git = ["git", "-C", str(found.root)]
+    subprocess.run([*git, "add", "-A"], check=True)
+    staged = subprocess.run([*git, "diff", "--cached", "--quiet"])
+    if staged.returncode == 0:
+        typer.echo("nothing to commit")
+        return
+    subprocess.run([*git, "commit", "-q", "-m", message], check=True)
+    head = subprocess.run([*git, "log", "-1", "--oneline"], capture_output=True, text=True)
+    typer.echo(head.stdout.strip())
 
 
 # --- schema -----------------------------------------------------------------------

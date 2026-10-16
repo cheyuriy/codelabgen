@@ -8,7 +8,7 @@ user-invocable: false
 
 You drive course generation from the main session. Only you start subagents, and only you change course state (see the state-protocol skill). Workers do one job each and end with a status JSON.
 
-> This version covers **lesson production** (phase `lessons`). Research, curriculum and assembly come in later milestones.
+> This version covers **lesson production** (phase `lessons`) and **assembly** (phase `assembly`). Research and curriculum come in later milestones.
 
 ## Before you start
 
@@ -56,6 +56,10 @@ Every worker in a rework round must read `.codelabgen/lessons/<id>/review.md` an
 ### Parallel modules
 
 When `state next` returns lessons from different modules, run their pipelines side by side: start each lesson's next worker as a background agent, and when one finishes, record its stage and start that lesson's next step. Never run two lessons of the same module at once. When everything returned by `state next` is done, ask `state next` again.
+
+## Assembly
+
+When `codelabgen state next` reports that all lessons are done, follow the assembly procedure in the site-assembly skill: glossary, `toc`, `check all`, `site build`, commit, phase `done`.
 
 ## Starting a worker
 

@@ -27,6 +27,17 @@ codelabgen doctor        # which external tools are present, and what a missing 
 claude --plugin-dir .    # load the plugin from this checkout
 ```
 
+Optional tools, each enabling one feature (`codelabgen doctor` shows what is missing):
+
+| Tool | Feature | Install (Ubuntu) |
+|---|---|---|
+| Docker | services such as Postgres in lessons | [docs.docker.com/engine/install](https://docs.docker.com/engine/install/ubuntu/) |
+| `asciinema` 3.x, `agg` | terminal recordings | binaries from the GitHub releases of `asciinema/asciinema` and `asciinema/agg` (apt's asciinema 2.x is too old) |
+| `d2` | D2 diagrams | `curl -fsSL https://d2lang.com/install.sh \| sh -s --` |
+| Graphviz (`dot`) | Graphviz diagrams | `sudo apt install graphviz` |
+| `gh` | GitHub source discovery | `sudo apt install gh`, then `gh auth login` |
+| `yt-dlp` | talk transcripts | `uv tool install yt-dlp` |
+
 ## Development
 
 With the environment activated:
@@ -40,4 +51,5 @@ codelabgen schema export   # after changing models.py
 ## Status
 
 - M0 (foundation): `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
+- M2 (assembly and visuals): `toc` (READMEs, nav, `run.sh`), `site build/serve`, `glossary`, `diagrams render`, `record`, `check all`, `commit`; the `site-assembly` skill; `/codelabgen:build`.
 - M1 (lesson pipeline): `curriculum`, `scaffold`, `verify`, `snippets`, `check snippets`, `env`; six lesson agents and their skills; the orchestrator skill (lesson production); `/codelabgen:lesson`. Test course: `tests/fixtures/make-m1-course.sh <dir>`.

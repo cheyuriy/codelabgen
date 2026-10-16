@@ -17,7 +17,14 @@ A diagram earns its place when the reader needs to see **structure or flow**: ho
 | Architecture, layered systems, many containers | **D2** (`docs/diagrams/<name>.d2` + rendered `.svg`) | Better layout for big pictures |
 | Dense graphs | **Graphviz** (`docs/diagrams/<name>.dot` + `.svg`) | Handles many edges |
 
-Default to Mermaid. D2 and Graphviz SVGs are rendered by `codelabgen diagrams render`, which is not built yet, so for now use Mermaid only.
+Default to Mermaid. Use D2 or Graphviz only when `codelabgen doctor` shows the tool as `ok`.
+
+## D2 and Graphviz
+
+- Put the source in `<lesson dir>/docs/diagrams/<name>.d2` (or `.dot`) and run `codelabgen diagrams render <id> --course <dir>`. It writes `<name>.svg` next to the source. Graphviz SVGs have a transparent background; D2 SVGs switch between a light and a dark palette with the reader's color scheme. `codelabgen verify` re-renders changed sources too.
+- Reference the SVG from the docs: `![Архитектура сервиса](diagrams/<name>.svg)`. Never reference the source file.
+- No colors or fonts in the source: the renderer's themes handle light and dark mode. Labels in the course language, short.
+- Keep it readable at page width: about 20 shapes at most.
 
 ## Generate from the code when you can
 

@@ -41,6 +41,19 @@ Adapt to the topic. A typical chapter:
 - Link to the walkthrough with `[разбор кода](readalong.md#…)` and to files with relative links such as `[graph.py](../src/l1_2_routing/graph.py)`.
 - Refer to code by identifiers, never by line numbers.
 
+## Glossary terms
+
+The course has a shared glossary (`GLOSSARY.md`). On the site, every use of a term shows its definition on hover.
+
+- For each term this lesson **introduces**, add it, in the course language:
+  ```bash
+  codelabgen glossary add "Граф состояний" --definition "Граф, в котором узлы по очереди обновляют общее состояние." --alias "граф состояний" --lesson <id> --course <dir>
+  ```
+  Use the form the term takes in text as the term. Add inflected forms the text uses as `--alias` (Russian: "графа", "графе"…), because tooltips match exact words only.
+- **Link the first use** of each term in the notes to its entry. Get the link target from `codelabgen glossary link "<term>" --from <lesson dir>/docs/notes.md --course <dir>`.
+- Check `codelabgen glossary list` first. Don't redefine terms that earlier lessons introduced, but you may link to them.
+- Definitions: one or two sentences, self-contained, without Markdown links.
+
 ## Diagrams, math, callouts
 
 - Follow the diagramming skill. Use Mermaid by default; generate the diagram from the code when the library can draw it.
@@ -61,4 +74,5 @@ List only sources you actually read for this chapter, with title and URL, offici
 
 1. `codelabgen snippets sync <id> --course <dir>`, then `codelabgen check snippets <id> --course <dir>` must print `ok`.
 2. Every relative link points to an existing file. Every external link was fetched.
-3. Every Mermaid diagram follows the diagramming skill's rules.
+3. Every diagram follows the diagramming skill's rules.
+4. `codelabgen check links --course <dir>`, `check render` and `check math` report nothing for this lesson's files.

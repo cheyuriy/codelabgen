@@ -56,6 +56,12 @@ The spec lists the tests the code-author must write. Tests run in `codelabgen ve
 
 List 3–5 "what to try" experiments. Each one is a small change with an observable effect that deepens understanding: "remove the edge from X to Y and run again: compilation fails with …", "send a ticket with both keywords: …". Write each as **change → what you will observe → why**. Prefer experiments that show a common mistake.
 
+## Recordings
+
+A terminal recording helps when the output **unfolds over time** or the terminal is the interface: streaming tokens, progress, an interactive CLI, a long-running process with log lines. A short, static output doesn't need one: the read-along quotes it as text.
+
+For each recording, give a `name` (kebab-case, used for the file names), the `cmd` as typed after `uv run` (for example `python -m l1_2_routing --stream`), `max_seconds` (keep it under 30), and, for interactive programs, an `input_script` that is piped to the program's stdin. Recordings run after the tests pass, with the lesson's environment.
+
 ## Regions
 
 Name the code regions the read-along will show: snake_case, one per meaningful unit (the state class, the routing function, the graph wiring). The code-author wraps each in `# region <name>` / `# endregion` markers.
@@ -89,7 +95,7 @@ tests:
 experiments:
   - "Return an unknown queue name from route(): …"
 env: []                   # extra variables this lesson needs, if any
-recordings: []
+recordings: []           # e.g. [{name: stream-reply, cmd: "python -m l1_2_routing", max_seconds: 20}]
 ```
 
 `scenario`, `delta`, `tests` and `experiments` are in English: they are instructions for the agents. `title` is in the course language. Code identifiers are English.

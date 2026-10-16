@@ -8,6 +8,7 @@ pyproject once created) are only created when missing.
 from __future__ import annotations
 
 import re
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -26,6 +27,7 @@ from codelabgen.state import StateStore
 
 TEMPLATES = files("codelabgen") / "templates"
 _jinja = Environment(undefined=StrictUndefined, keep_trailing_newline=True)
+_jinja.filters["shq"] = shlex.quote
 
 
 class ScaffoldError(Exception):
