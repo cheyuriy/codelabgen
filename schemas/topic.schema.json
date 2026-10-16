@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "description": "One row of topics/<source>.jsonl.",
+  "properties": {
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "prerequisites": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Prerequisites",
+      "type": "array"
+    },
+    "difficulty": {
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Difficulty",
+      "type": "integer"
+    },
+    "apis": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Apis",
+      "type": "array"
+    },
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    },
+    "evidence_url": {
+      "title": "Evidence Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "summary",
+    "difficulty",
+    "source_id",
+    "evidence_url"
+  ],
+  "title": "Topic",
+  "type": "object"
+}

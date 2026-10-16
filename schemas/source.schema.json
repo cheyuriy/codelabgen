@@ -1,0 +1,105 @@
+{
+  "additionalProperties": false,
+  "description": "One row of sources.jsonl.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "url": {
+      "title": "Url",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "official-docs",
+        "official-blog",
+        "release-notes",
+        "package-internals",
+        "article",
+        "github-repo",
+        "qa",
+        "paper-spec",
+        "talk-workshop",
+        "university",
+        "book-course"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "roles": {
+      "items": {
+        "enum": [
+          "structure",
+          "code-truth",
+          "concepts",
+          "pitfalls"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Roles",
+      "type": "array"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    },
+    "date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date"
+    },
+    "score": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Score",
+      "type": "number"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "status": {
+      "default": "proposed",
+      "enum": [
+        "proposed",
+        "kept",
+        "dropped",
+        "user"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "url",
+    "type",
+    "roles",
+    "title",
+    "score",
+    "reason"
+  ],
+  "title": "Source",
+  "type": "object"
+}

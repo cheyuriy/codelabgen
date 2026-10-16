@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "CurriculumNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "slug": {
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Slug",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "objectives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Objectives",
+          "type": "array"
+        },
+        "prerequisites": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Prerequisites",
+          "type": "array"
+        },
+        "example": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExampleRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/CurriculumNode"
+          },
+          "title": "Children",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "slug",
+        "summary"
+      ],
+      "title": "CurriculumNode",
+      "type": "object"
+    },
+    "EnvVar": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "where_to_get": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Where To Get"
+        },
+        "scope": {
+          "default": "course",
+          "enum": [
+            "course",
+            "lesson"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "secret": {
+          "default": false,
+          "title": "Secret",
+          "type": "boolean"
+        },
+        "lessons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lessons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "EnvVar",
+      "type": "object"
+    },
+    "ExampleRef": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "new",
+            "extend"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From"
+        }
+      },
+      "required": [
+        "name",
+        "mode"
+      ],
+      "title": "ExampleRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/CurriculumNode"
+      },
+      "title": "Modules",
+      "type": "array"
+    },
+    "env": {
+      "items": {
+        "$ref": "#/$defs/EnvVar"
+      },
+      "title": "Env",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "modules"
+  ],
+  "title": "Curriculum",
+  "type": "object"
+}

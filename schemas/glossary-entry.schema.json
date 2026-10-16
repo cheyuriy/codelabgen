@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "term": {
+      "title": "Term",
+      "type": "string"
+    },
+    "aliases": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Aliases",
+      "type": "array"
+    },
+    "definition": {
+      "title": "Definition",
+      "type": "string"
+    },
+    "first_lesson": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "First Lesson"
+    }
+  },
+  "required": [
+    "term",
+    "definition"
+  ],
+  "title": "GlossaryEntry",
+  "type": "object"
+}

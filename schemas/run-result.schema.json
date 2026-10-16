@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "StepResult": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "sync",
+            "lint",
+            "offline-tests",
+            "live-run",
+            "record",
+            "diagrams",
+            "snippets"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "exit_code": {
+          "title": "Exit Code",
+          "type": "integer"
+        },
+        "duration_s": {
+          "title": "Duration S",
+          "type": "number"
+        },
+        "log": {
+          "description": "Path to the log file, relative to the run directory",
+          "title": "Log",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "exit_code",
+        "duration_s",
+        "log"
+      ],
+      "title": "StepResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "lesson": {
+      "title": "Lesson",
+      "type": "string"
+    },
+    "started": {
+      "format": "date-time",
+      "title": "Started",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/StepResult"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "lesson",
+    "started",
+    "steps",
+    "passed"
+  ],
+  "title": "RunResult",
+  "type": "object"
+}

@@ -1,0 +1,172 @@
+{
+  "$defs": {
+    "EnvVar": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "where_to_get": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Where To Get"
+        },
+        "scope": {
+          "default": "course",
+          "enum": [
+            "course",
+            "lesson"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "secret": {
+          "default": false,
+          "title": "Secret",
+          "type": "boolean"
+        },
+        "lessons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Lessons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "EnvVar",
+      "type": "object"
+    },
+    "Recording": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "cmd": {
+          "title": "Cmd",
+          "type": "string"
+        },
+        "input_script": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Script"
+        },
+        "max_seconds": {
+          "default": 60,
+          "maximum": 600,
+          "minimum": 1,
+          "title": "Max Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "cmd"
+      ],
+      "title": "Recording",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "scenario": {
+      "title": "Scenario",
+      "type": "string"
+    },
+    "files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "delta_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delta From"
+    },
+    "run_cmd": {
+      "title": "Run Cmd",
+      "type": "string"
+    },
+    "tests": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tests",
+      "type": "array"
+    },
+    "experiments": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Experiments",
+      "type": "array"
+    },
+    "regions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Regions",
+      "type": "array"
+    },
+    "recordings": {
+      "items": {
+        "$ref": "#/$defs/Recording"
+      },
+      "title": "Recordings",
+      "type": "array"
+    },
+    "env": {
+      "items": {
+        "$ref": "#/$defs/EnvVar"
+      },
+      "title": "Env",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "scenario",
+    "files",
+    "run_cmd"
+  ],
+  "title": "LessonSpec",
+  "type": "object"
+}

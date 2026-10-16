@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "LessonState": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "$ref": "#/$defs/Stage",
+          "default": "pending"
+        },
+        "fix_attempts": {
+          "default": 0,
+          "title": "Fix Attempts",
+          "type": "integer"
+        },
+        "review_rounds": {
+          "default": 0,
+          "title": "Review Rounds",
+          "type": "integer"
+        },
+        "blocked_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stage to return to when unblocked"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "updated": {
+          "format": "date-time",
+          "title": "Updated",
+          "type": "string"
+        }
+      },
+      "title": "LessonState",
+      "type": "object"
+    },
+    "Phase": {
+      "enum": [
+        "init",
+        "recon",
+        "sources",
+        "gate_sources",
+        "topics",
+        "curriculum",
+        "gate_plan",
+        "scaffold",
+        "lessons",
+        "assembly",
+        "done"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "Stage": {
+      "description": "The last completed stage of a lesson (PLAN.md \u00a72).",
+      "enum": [
+        "pending",
+        "spec",
+        "code",
+        "verified",
+        "readalong",
+        "notes",
+        "reviewed",
+        "done",
+        "blocked",
+        "stale"
+      ],
+      "title": "Stage",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "phase": {
+      "$ref": "#/$defs/Phase",
+      "default": "init"
+    },
+    "approved_gates": {
+      "items": {
+        "$ref": "#/$defs/Phase"
+      },
+      "title": "Approved Gates",
+      "type": "array"
+    },
+    "lessons": {
+      "additionalProperties": {
+        "$ref": "#/$defs/LessonState"
+      },
+      "title": "Lessons",
+      "type": "object"
+    },
+    "updated": {
+      "format": "date-time",
+      "title": "Updated",
+      "type": "string"
+    }
+  },
+  "title": "State",
+  "type": "object"
+}

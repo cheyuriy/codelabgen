@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "Budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "fix_attempts": {
+          "default": 5,
+          "description": "Verify-fix attempts before a lesson is blocked",
+          "minimum": 1,
+          "title": "Fix Attempts",
+          "type": "integer"
+        },
+        "review_rounds": {
+          "default": 2,
+          "minimum": 0,
+          "title": "Review Rounds",
+          "type": "integer"
+        },
+        "parallel_modules": {
+          "default": 2,
+          "minimum": 1,
+          "title": "Parallel Modules",
+          "type": "integer"
+        }
+      },
+      "title": "Budgets",
+      "type": "object"
+    },
+    "External": {
+      "additionalProperties": false,
+      "description": "An external service the course needs, with the user's answers from gate 2.",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "env_vars": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Env Vars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "title": "External",
+      "type": "object"
+    },
+    "Runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ecosystem, e.g. 'python-uv', 'node', 'go'",
+          "title": "Kind"
+        },
+        "per": {
+          "default": "module",
+          "enum": [
+            "module",
+            "lesson"
+          ],
+          "title": "Per",
+          "type": "string"
+        },
+        "services": {
+          "description": "Docker Compose services",
+          "items": {
+            "type": "string"
+          },
+          "title": "Services",
+          "type": "array"
+        }
+      },
+      "title": "Runtime",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "topic": {
+      "title": "Topic",
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Pinned version of the technology",
+      "title": "Version"
+    },
+    "language": {
+      "default": "en",
+      "description": "Course language (ISO 639-1)",
+      "title": "Language",
+      "type": "string"
+    },
+    "target": {
+      "description": "Absolute path of the course directory",
+      "title": "Target",
+      "type": "string"
+    },
+    "user_sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "User Sources",
+      "type": "array"
+    },
+    "runtime": {
+      "$ref": "#/$defs/Runtime"
+    },
+    "external": {
+      "items": {
+        "$ref": "#/$defs/External"
+      },
+      "title": "External",
+      "type": "array"
+    },
+    "budgets": {
+      "$ref": "#/$defs/Budgets"
+    }
+  },
+  "required": [
+    "topic",
+    "target"
+  ],
+  "title": "Config",
+  "type": "object"
+}
