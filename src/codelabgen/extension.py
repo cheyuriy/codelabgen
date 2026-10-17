@@ -26,6 +26,7 @@ from pathlib import Path
 import yaml
 
 from codelabgen import curriculum as cur
+from codelabgen import runtimes
 from codelabgen.course import Course, atomic_write
 from codelabgen.curriculum import Lesson
 from codelabgen.models import (
@@ -37,6 +38,7 @@ from codelabgen.models import (
     lesson_sort_key,
     now,
 )
+from codelabgen.scaffold import TEXT_SUFFIXES
 from codelabgen.state import StateError, StateStore
 
 
@@ -330,9 +332,9 @@ def move_lessons(course: Course, moves: list[tuple[Lesson, Lesson]]) -> None:
             if source.exists():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(source), str(target))
-        package_dir = root / new.rel_dir / "src" / old.package
-        if package_dir.exists():
-            package_dir.rename(package_dir.with_name(new.package))
+        for old_rel, new_rel in runtimes.for_course(course).path_renames(old, new):
+            if (root / new.rel_dir / old_rel).exists():
+                (root / new.rel_dir / old_rel).rename(root / new.rel_dir / new_rel)
     shutil.rmtree(staging)
 
     # 3. Rewrite references: packages, projects, ids in specs, directory names in links.
@@ -350,7 +352,7 @@ def move_lessons(course: Course, moves: list[tuple[Lesson, Lesson]]) -> None:
         p
         for p in root.rglob("*")
         if p.is_file()
-        and p.suffix in {".md", ".py", ".toml", ".yaml", ".yml", ".sh", ".json"}
+        and p.suffix in TEXT_SUFFIXES
         and not {".git", ".venv", "cache", "repos", "site", "__pycache__"} & set(p.parts)
     ]
     pattern = re.compile("|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True)))

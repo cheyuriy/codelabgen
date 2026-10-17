@@ -18,6 +18,7 @@ from pathlib import Path
 
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
+from codelabgen import runtimes
 from codelabgen.course import Course
 
 MAX_GIF_BYTES = 8 * 1024 * 1024
@@ -77,10 +78,7 @@ def record(course: Course, lesson_id: str) -> RecordReport:
     for item in spec.recordings:
         cast, gif = out_dir / f"{item.name}.cast", out_dir / f"{item.name}.gif"
         # What the viewer sees typed, then the real command run inside the lesson's project.
-        shown = f"uv run {item.cmd}"
-        real = shlex.join(
-            ["uv", "run", "--frozen", "--package", lesson.project, *shlex.split(item.cmd)]
-        )
+        shown, real = runtimes.for_course(course).record_command(lesson, item.cmd)
         if item.input_script:
             real = f"printf %s {shlex.quote(item.input_script)} | {real}"
         script = f"printf '$ %s\\n' {shlex.quote(shown)}; {real}"

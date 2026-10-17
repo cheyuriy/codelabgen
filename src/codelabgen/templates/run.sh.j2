@@ -9,11 +9,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 unset VIRTUAL_ENV
 
-# lesson id -> module dir | lesson dir | uv project | services | run command
+# lesson id -> lesson dir | services | sync dir | sync command | run command | test command
 lesson_info() {
   case "$1" in
 {%- for lesson in lessons %}
-    {{ lesson.id }}) printf '%s\n' {{ [lesson.module_dir, lesson.dir, lesson.project, lesson.services, lesson.run_cmd] | join("|") | shq }} ;;
+    {{ lesson.id }}) printf '%s\n' {{ [lesson.dir, lesson.services, lesson.sync_dir, lesson.sync, lesson.run, lesson.test] | join("|") | shq }} ;;
 {%- endfor %}
     *) return 1 ;;
   esac
@@ -26,7 +26,7 @@ lessons() {
 }
 
 prepare() {
-  IFS='|' read -r module dir project services cmd < <(lesson_info "$1") || {
+  IFS='|' read -r dir services sync_dir sync_cmd run_cmd test_cmd < <(lesson_info "$1") || {
     echo "unknown lesson: $1 (see ./run.sh list)" >&2
     exit 2
   }
@@ -38,7 +38,7 @@ prepare() {
     # shellcheck disable=SC2086
     docker compose up -d --wait $services
   fi
-  (cd "$module" && uv sync --all-packages --quiet)
+  (cd "$sync_dir" && eval "$sync_cmd")
 }
 
 case "${1:-}" in
@@ -46,7 +46,7 @@ case "${1:-}" in
   list) lessons ;;
   test)
     prepare "${2:?usage: ./run.sh test <lesson>}"
-    cd "$dir" && uv run --package "$project" pytest -q tests
+    cd "$dir" && eval "$test_cmd"
     ;;
   site)
     export DISABLE_MKDOCS_2_WARNING=true
@@ -54,7 +54,6 @@ case "${1:-}" in
     ;;
   *)
     prepare "$1"
-    # shellcheck disable=SC2086
-    cd "$dir" && exec uv run --package "$project" $cmd
+    cd "$dir" && eval "exec $run_cmd"
     ;;
 esac

@@ -6,7 +6,6 @@ and is overwritten on every run. Lesson code and docs are never touched.
 
 from __future__ import annotations
 
-import shlex
 from importlib.resources import files
 from pathlib import Path
 
@@ -14,7 +13,7 @@ import yaml
 
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
-from codelabgen import glossary
+from codelabgen import glossary, runtimes
 from codelabgen.course import Course, atomic_write
 from codelabgen.curriculum import Lesson
 from codelabgen.i18n import labels
@@ -40,7 +39,27 @@ def render(name: str, **context) -> str:
 
 def run_command(course: Course, lesson: Lesson) -> str:
     spec = envmod.load_spec(course, lesson.id)
-    return spec.run_cmd if spec else f"python -m {lesson.package}"
+    return spec.run_cmd if spec else runtimes.for_course(course).default_run_cmd(lesson)
+
+
+def run_entry(course: Course, lesson: Lesson, services: list[str]) -> dict:
+    """One lesson's line in run.sh."""
+    shell = shell_commands(course, lesson)
+    sync_dir = lesson.module_rel_dir if shell.sync_cwd == "module" else lesson.rel_dir
+    return {
+        "id": lesson.id,
+        "title": lesson.node.title,
+        "dir": lesson.rel_dir.as_posix(),
+        "services": " ".join(services),
+        "sync_dir": sync_dir.as_posix(),
+        "sync": shell.sync,
+        "run": shell.run,
+        "test": shell.test,
+    }
+
+
+def shell_commands(course: Course, lesson: Lesson):
+    return runtimes.for_course(course).shell(lesson, run_command(course, lesson))
 
 
 def generate(course: Course) -> list[Path]:
@@ -95,18 +114,7 @@ def generate(course: Course) -> list[Path]:
         run_sh,
         render(
             "run.sh.j2",
-            lessons=[
-                {
-                    "id": lesson.id,
-                    "title": lesson.node.title,
-                    "module_dir": lesson.module_rel_dir.as_posix(),
-                    "dir": lesson.rel_dir.as_posix(),
-                    "project": lesson.project,
-                    "services": " ".join(services[lesson.id]),
-                    "run_cmd": run_command(course, lesson),
-                }
-                for lesson in lessons
-            ],
+            lessons=[run_entry(course, lesson, services[lesson.id]) for lesson in lessons],
             site_mkdocs=SITE_MKDOCS,
             site_plugins=SITE_PLUGINS,
         ),
@@ -203,14 +211,16 @@ def lesson_readme(course, curriculum, lesson: Lesson, services, previous, follow
         lines.append(f"- [{text['notes']}](docs/notes.md) — {text['notes_hint']}")
     if (docs / "readalong.md").exists():
         lines.append(f"- [{text['readalong']}](docs/readalong.md) — {text['readalong_hint']}")
-    package_dir = course.root / lesson.rel_dir / "src" / lesson.package
-    code_files = sorted(p for p in package_dir.glob("*.py") if p.name != "__init__.py")
+    lesson_dir = course.root / lesson.rel_dir
+    code_files = runtimes.real_code_files(runtimes.for_course(course), lesson_dir, lesson)
     if code_files:
-        links = ", ".join(f"[{p.name}](src/{lesson.package}/{p.name})" for p in code_files)
+        links = ", ".join(
+            f"[{p.name}]({p.relative_to(lesson_dir).as_posix()})" for p in code_files[:12]
+        )
         lines.append(f"- {text['code']}: {links}")
     lines.append("")
 
-    command = run_command(course, lesson)
+    shell = shell_commands(course, lesson)
     lines += [
         f"## {text['how_to_run']}",
         "",
@@ -226,10 +236,15 @@ def lesson_readme(course, curriculum, lesson: Lesson, services, previous, follow
     ]
     if services:
         lines.append(f"docker compose up -d --wait {' '.join(services)}")
+    if shell.sync_cwd == "module":
+        lines += [
+            f"cd {lesson.module_rel_dir.as_posix()} && {shell.sync}",
+            f"cd {lesson.rel_dir.relative_to(lesson.module_rel_dir).as_posix()}",
+        ]
+    else:
+        lines += [f"cd {lesson.rel_dir.as_posix()} && {shell.sync}"]
     lines += [
-        f"cd {lesson.module_rel_dir.as_posix()} && uv sync --all-packages",
-        f"cd {lesson.rel_dir.relative_to(lesson.module_rel_dir).as_posix()}",
-        f"uv run {shlex.join(shlex.split(command))}",
+        shell.run,
         "```",
         "",
         text["tests_hint"],

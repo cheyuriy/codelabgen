@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from codelabgen import curriculum as cur
-from codelabgen import diagrams, snippets
+from codelabgen import diagrams, runtimes, snippets
 from codelabgen.course import Course
 from codelabgen.markdown import IMAGE, LINK, code_blocks, heading_slugs, prose_lines
 
@@ -156,15 +156,12 @@ def check_mermaid(course: Course) -> list[str]:
 def check_structure(course: Course) -> list[str]:
     """Every lesson has code, tests, README, docs/readalong.md and docs/notes.md."""
     problems = []
+    runtime = runtimes.for_course(course)
     for lesson in lessons(course):
         folder = course.root / lesson.rel_dir
-        package = folder / "src" / lesson.package
-        code = (
-            [p for p in package.glob("*.py") if p.name != "__init__.py"] if package.is_dir() else []
-        )
         required = {
-            "lesson code": bool(code),
-            "tests": bool(list((folder / "tests").glob("test_*.py"))),
+            "lesson code": bool(runtimes.real_code_files(runtime, folder, lesson)),
+            "tests": bool(runtime.test_files(folder, lesson)),
             "docs/readalong.md": (folder / "docs" / "readalong.md").is_file(),
             "docs/notes.md": (folder / "docs" / "notes.md").is_file(),
             "README.md": (folder / "README.md").is_file(),

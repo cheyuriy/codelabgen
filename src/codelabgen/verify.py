@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from codelabgen import curriculum as cur
-from codelabgen import diagrams, snippets
+from codelabgen import diagrams, runtimes, snippets
 from codelabgen import env as envmod
 from codelabgen import record as recordings
 from codelabgen.course import Course, atomic_write, dump_json
@@ -98,13 +98,9 @@ def verify(course: Course, lesson_id: str, live: bool = True) -> RunResult:
         record("live-run", 1, 0, f"no spec: .codelabgen/lessons/{lesson_id}/spec.yaml is missing\n")
         return finish(False)
 
-    uv_run = ["uv", "run", "--package", lesson.project]
-    steps = [
-        Step("sync", ["uv", "sync", "--all-packages"], module_dir, 900),
-        Step("lint", [*uv_run, "--frozen", "ruff", "check", "."], lesson_dir, 120),
-        Step("format", [*uv_run, "--frozen", "ruff", "format", "--check", "."], lesson_dir, 120),
-        Step("offline-tests", [*uv_run, "--frozen", "pytest", "-q", "tests"], lesson_dir, 600),
-    ]
+    runtime = runtimes.for_course(course)
+    cwd = {"lesson": lesson_dir, "module": module_dir}
+    steps = [Step(s.name, s.argv, cwd[s.cwd], s.timeout) for s in runtime.verify_steps(lesson)]
     if live:
         # Services are only for the live run: offline tests never need them.
         needed = lesson_services(curriculum, course)[lesson_id]
@@ -117,7 +113,7 @@ def verify(course: Course, lesson_id: str, live: bool = True) -> RunResult:
                     300,
                 )
             )
-        live_argv = [*uv_run, "--frozen", *shlex.split(spec.run_cmd)]
+        live_argv = runtime.live_argv(lesson, spec.run_cmd)
         steps.append(Step("live-run", live_argv, lesson_dir, spec.run_timeout_s))
 
     for step in steps:

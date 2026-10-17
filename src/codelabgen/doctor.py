@@ -30,7 +30,8 @@ TOOLS = [
     Tool("dot", "Graphviz diagrams", version_args=("-V",)),
     Tool("asciinema", "terminal recordings"),
     Tool("agg", "converting terminal recordings to GIF"),
-    Tool("node", "Mermaid and LaTeX checks (mmdc, katex via npx)"),
+    Tool("node", "Node courses (with npm); Mermaid and LaTeX checks"),
+    Tool("go", "Go courses", version_args=("version",)),
     Tool("yt-dlp", "talk transcripts (without it, `uvx yt-dlp` is used)"),
 ]
 

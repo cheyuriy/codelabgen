@@ -19,7 +19,7 @@ from jinja2 import Environment, StrictUndefined
 
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
-from codelabgen import services
+from codelabgen import runtimes, services
 from codelabgen.course import Course, atomic_write
 from codelabgen.curriculum import Lesson
 from codelabgen.i18n import labels
@@ -86,8 +86,13 @@ def scaffold_course(course: Course) -> ScaffoldReport:
         config.runtime.services = used
         course.save_config(config)
 
-    write(course, report, root / ".gitignore", (TEMPLATES / "gitignore").read_text())
-    write(course, report, root / "ruff.toml", (TEMPLATES / "ruff.toml").read_text())
+    runtime = runtimes.for_course(course)
+    gitignore = (TEMPLATES / "gitignore").read_text() + "".join(
+        f"{line}\n" for line in runtime.gitignore
+    )
+    write(course, report, root / ".gitignore", gitignore)
+    for name, text in runtime.course_files().items():
+        write(course, report, root / name, text)
     compose = root / "docker-compose.yml"
     if catalog:
         write(course, report, compose, services.compose_yaml(catalog, course_slug(root.name)))
@@ -126,8 +131,8 @@ def scaffold_module(
 ) -> None:
     module_dir = course.root / cur.node_dir_name(module)
     members = [lesson.rel_dir.relative_to(lesson.module_rel_dir).as_posix() for lesson in lessons]
-    text = render("module_pyproject.toml.j2", module=module, members=members)
-    write(course, report, module_dir / "pyproject.toml", text)
+    for name, text in runtimes.for_course(course).module_files(module, members).items():
+        write(course, report, module_dir / name, text)
 
 
 def scaffold_lesson(course: Course, lesson_id: str) -> ScaffoldReport:
@@ -139,20 +144,6 @@ def scaffold_lesson(course: Course, lesson_id: str) -> ScaffoldReport:
     return report
 
 
-def stub_init(lesson: Lesson) -> str:
-    return f'"""Lesson {lesson.id}: {lesson.node.title}."""\n'
-
-
-def is_stub(lesson_dir: Path, lesson: Lesson) -> bool:
-    """True while the lesson's code is still the scaffolded placeholder."""
-    package_dir = lesson_dir / "src" / lesson.package
-    if not package_dir.exists():
-        return True
-    entries = [p for p in package_dir.iterdir() if p.name != "__pycache__"]
-    init = package_dir / "__init__.py"
-    return entries == [init] and init.read_text() == stub_init(lesson)
-
-
 def scaffold_lesson_dir(
     course: Course,
     curriculum: Curriculum,
@@ -161,31 +152,35 @@ def scaffold_lesson_dir(
     copy_code: bool,
 ) -> None:
     """Create what is missing. With copy_code, an extending lesson that still has only
-    the placeholder package gets the code of the lesson it extends."""
+    the placeholder code gets the code of the lesson it extends."""
+    runtime = runtimes.for_course(course)
     lesson_dir = course.root / lesson.rel_dir
     (lesson_dir / "docs").mkdir(parents=True, exist_ok=True)
 
-    package_dir = lesson_dir / "src" / lesson.package
     example = lesson.node.example
     extends = example.from_lesson if example and example.mode == "extend" else None
-    if copy_code and extends and is_stub(lesson_dir, lesson):
+    if copy_code and extends and runtimes.is_stub(runtime, lesson_dir, lesson):
         source = cur.find_lesson(curriculum, extends)
-        if not (course.root / source.rel_dir / "src" / source.package).is_dir():
+        source_dir = course.root / source.rel_dir
+        if runtimes.is_stub(runtime, source_dir, source):
             raise ScaffoldError(
                 f"lesson {lesson.id} extends {source.id}, but {source.id} has no code yet"
             )
-        shutil.rmtree(package_dir, ignore_errors=True)
-        copy_lesson_code(course, source, lesson)
+        for rel in runtime.stub_files(lesson):
+            stub = lesson_dir / rel
+            stub.unlink(missing_ok=True)
+            for parent in stub.parents:  # folders the placeholder leaves empty
+                if parent == lesson_dir or not parent.is_dir() or any(parent.iterdir()):
+                    break
+                parent.rmdir()
+        copy_lesson_code(course, runtime, source, lesson)
         report.copied_from[lesson.id] = source.id
 
-    pyproject = lesson_dir / "pyproject.toml"
-    if not pyproject.exists():
-        create(course, report, pyproject, render("lesson_pyproject.toml.j2", lesson=lesson))
-    init = package_dir / "__init__.py"
-    if not init.exists():
-        create(course, report, init, stub_init(lesson))
-    tests = lesson_dir / "tests"
-    tests.mkdir(exist_ok=True)
+    for rel, text in runtime.lesson_files(lesson).items():
+        path = lesson_dir / rel
+        if not path.exists():
+            create(course, report, path, text)
+    (lesson_dir / "tests").mkdir(exist_ok=True)
     readme = lesson_dir / "README.md"
     if not readme.exists():
         text = labels(course.load_config().language)
@@ -203,35 +198,64 @@ def scaffold_lesson_dir(
         env_example.unlink()
 
 
-def copy_lesson_code(course: Course, source: Lesson, target: Lesson) -> None:
-    """Start a lesson from an earlier lesson's code, renaming the package everywhere."""
-    src_dir, dst_dir = course.root / source.rel_dir, course.root / target.rel_dir
-    if not (src_dir / "src" / source.package).is_dir():
-        raise ScaffoldError(
-            f"lesson {target.id} extends {source.id}, but {source.id} has no code yet"
-        )
-    shutil.copytree(src_dir / "src" / source.package, dst_dir / "src" / target.package)
-    if (src_dir / "tests").is_dir():
-        shutil.copytree(src_dir / "tests", dst_dir / "tests", dirs_exist_ok=True)
-    if (src_dir / "pyproject.toml").is_file():
-        shutil.copy2(src_dir / "pyproject.toml", dst_dir / "pyproject.toml")
-    replacements = {
+def rename_tokens(source: Lesson, target: Lesson) -> dict[str, str]:
+    return {
         source.package: target.package,
         source.project: target.project,
         f"Lesson {source.id}: {source.node.title}": f"Lesson {target.id}: {target.node.title}",
     }
-    for path in [
-        dst_dir / "pyproject.toml",
-        *dst_dir.joinpath("src").rglob("*"),
-        *dst_dir.joinpath("tests").rglob("*"),
-    ]:
-        if path.is_file() and path.suffix in {".py", ".toml", ".txt", ".md", ".json", ".yaml"}:
+
+
+TEXT_SUFFIXES = {
+    ".py",
+    ".toml",
+    ".txt",
+    ".md",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".mjs",
+    ".go",
+    ".mod",
+    ".sum",
+    ".sql",
+    ".sh",
+    ".cfg",
+    ".ini",
+}
+
+
+def copy_lesson_code(course: Course, runtime, source: Lesson, target: Lesson) -> None:
+    """Start a lesson from an earlier lesson's code, renaming its package everywhere."""
+    src_dir, dst_dir = course.root / source.rel_dir, course.root / target.rel_dir
+    for item in src_dir.iterdir():
+        if item.name in runtimes.NOT_CODE:
+            continue
+        destination = dst_dir / item.name
+        if item.is_dir():
+            shutil.copytree(
+                item,
+                destination,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns(*runtimes.CACHE_DIRS),
+            )
+        else:
+            shutil.copy2(item, destination)
+    for old, new in runtime.path_renames(source, target):
+        if (dst_dir / old).exists() and not (dst_dir / new).exists():
+            (dst_dir / old).rename(dst_dir / new)
+    replacements = rename_tokens(source, target)
+    for path in dst_dir.rglob("*"):
+        if path.is_file() and path.suffix in TEXT_SUFFIXES and "docs" not in path.parts:
             text = path.read_text()
+            new_text = text
             for old, new in replacements.items():
-                text = text.replace(old, new)
-            path.write_text(text)
-    for cache in dst_dir.rglob("__pycache__"):
-        shutil.rmtree(cache)
+                new_text = new_text.replace(old, new)
+            if new_text != text:
+                path.write_text(new_text)
 
 
 def write(course: Course, report: ScaffoldReport, path: Path, text: str) -> None:
