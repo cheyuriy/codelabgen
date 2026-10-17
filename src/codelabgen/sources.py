@@ -380,3 +380,25 @@ def build_index(course: Course) -> Path:
     path = digests_dir(course) / "index.md"
     atomic_write(path, "\n".join(lines))
     return path
+
+
+def keep_proposed(course: Course, min_score: float) -> dict:
+    """Keep the still-proposed sources scoring at least `min_score`, drop the rest.
+
+    Used by extensions: their new sources are digested before the user's review,
+    and the user can still drop any of them at the extension's gate.
+    """
+    kept, dropped = [], []
+    with FileLock(str(course.meta / "sources.lock"), timeout=30):
+        items = load(course)
+        for source in items:
+            if source.status != "proposed":
+                continue
+            if source.score >= min_score:
+                source.status = "kept"
+                kept.append(source.id)
+            else:
+                source.status = "dropped"
+                dropped.append(source.id)
+        save(course, items)
+    return {"kept": kept, "dropped": dropped}

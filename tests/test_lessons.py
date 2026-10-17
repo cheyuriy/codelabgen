@@ -264,3 +264,50 @@ def test_sync_reports_bad_references(lesson_dir):
     assert "no region 'nope' (regions: body, fields, state)" in text
     assert "missing.py not found" in text
     assert "without <!-- /snippet -->" in text
+
+
+def test_port_conflict_diagnosis(monkeypatch):
+    from codelabgen import verify
+
+    log = (
+        "Error response from daemon: failed to set up container networking: driver failed "
+        "programming external connectivity on endpoint x: Bind for 0.0.0.0:5432 failed: "
+        "port is already allocated"
+    )
+
+    class Done:
+        stdout = "other-postgres-1\tother-course\n"
+
+    monkeypatch.setattr(verify.subprocess, "run", lambda *a, **k: Done())
+    note = verify.explain_port_conflict(log)
+    assert "port 5432 is used by container other-postgres-1" in note
+    assert "docker compose -p other-course stop" in note
+    assert verify.explain_port_conflict("some other error") == ""
+
+
+def test_port_offset_moves_ports_and_urls():
+    from codelabgen import services as svc
+
+    moved = svc.with_offset(svc.CATALOG["postgres"], 120)
+    assert moved.definition["ports"] == ["5552:5432"]
+    assert moved.env[0].default == "postgresql://codelab:codelab@localhost:5552/codelab"
+    assert svc.CATALOG["postgres"].definition["ports"] == ["5432:5432"]  # catalog untouched
+    assert svc.published_ports(moved) == [(5552, 5432)]
+    offset = svc.choose_offset(Path("/some/course"))
+    assert offset % 10 == 0 and 10 <= offset <= 9000
+
+
+def test_new_course_gets_own_ports_existing_env_keeps_standard(course, tmp_path):
+    scaffold_course(course)
+    offset = course.load_config().runtime.port_offset
+    assert offset and f"- {5432 + offset}:5432" in (course.root / "docker-compose.yml").read_text()
+    assert f"localhost:{5432 + offset}/" in (course.root / ".env").read_text()
+
+    old = init_course(tmp_path / "old", topic="LangGraph")
+    shutil.copy(FIXTURE, old.meta / "curriculum.yaml")
+    (old.root / ".env").write_text(
+        "POSTGRES_URL=postgresql://codelab:codelab@localhost:5432/codelab\n"
+    )
+    scaffold_course(old)
+    assert old.load_config().runtime.port_offset == 0
+    assert "- 5432:5432" in (old.root / "docker-compose.yml").read_text()

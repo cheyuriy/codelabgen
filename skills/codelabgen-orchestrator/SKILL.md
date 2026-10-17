@@ -165,6 +165,20 @@ When `state next` returns lessons from different modules, run their pipelines si
 
 When `codelabgen state next` reports that all lessons are done, say so and offer to assemble the course (`/codelabgen:build`). When the user agrees, or when you run as part of `/codelabgen:resume`, follow the assembly procedure in the site-assembly skill: glossary, `toc`, `check all`, `site build`, commit, phase `done`.
 
+## Extensions
+
+`/codelabgen:extend <dir> "<request>"` extends a finished course. `state next` drives it like everything else: while an extension is before lesson production, it returns `extension` and that extension's actions.
+
+1. **Start:** `codelabgen extend start "<request>"`. It refuses if lessons are unfinished or the course repo has uncommitted changes. Tell the user why and stop.
+2. **`gaps`:** run **gap-analyst** (task `ext<n>:gaps`), then `codelabgen extend stage research`.
+3. **`research`:** one **source-hunter** per entry of `hunt.yaml` (tasks `ext<n>:hunt:<type>`), passing its `focus`. Then `codelabgen sources keep-proposed --min-score 0.6` and `codelabgen extend stage digests`.
+4. **`digests`:** **topic-extractor** batches as in phase `topics`, then `topics merge`, `sources index`, and `extend stage delta`.
+5. **`delta`:** **curriculum-architect** in extend mode (task `ext<n>:architect`, with the proposal path), then **runtime-planner** in extend mode (task `ext<n>:runtime`), then `codelabgen extend diff` and `extend stage gate`.
+6. **`gate`:** show the user `.codelabgen/extensions/<n>/delta.md`: the new lessons, rewritten lessons, renamed ones, renumbering, and lessons to re-check. Also list the sources kept during this extension and ask about any new runtime questions. Feedback goes back to the architect (`codelabgen state task reset ext<n>:architect`). When the user approves: `codelabgen extend apply`. Add `--allow-renumber` only if the delta renumbers lessons and the user explicitly agreed to it. For new secrets, wait for `codelabgen env check`.
+7. **Lessons:** the course is back in phase `lessons`. Produce the new and rewritten lessons as usual.
+   - **Stale lessons** (`"stage": "stale"` in `state next`): run `codelabgen verify <id>`. If it fails, `codelabgen state set <id> spec --note "stale: <cause>"` and redo from the code. If it passes, run **lesson-reviewer** with the note "This lesson builds on lesson X, which was rewritten; check that it still agrees". On pass: `state set <id> reviewed`, then `done`. On revise: rework as for any review.
+8. **Assembly** as usual. Commit with a message naming the extension: `codelabgen commit -m "Extension <n>: <request>"`. Then `codelabgen extend finish`.
+
 ## Starting a worker
 
 Workers are this plugin's agents (`codelabgen:<name>`). Give each one everything it needs in its prompt. Get the lesson details from `codelabgen curriculum lessons`. For research and curriculum workers, pass the course directory, the course language, the technology and version, and the `args` from `state next`.

@@ -82,7 +82,7 @@ Don't pass `--update-state`; the orchestrator records the official result.
 You get the failing verify summary. Work from the evidence:
 
 - `env`: a variable is missing. You can't fix it in code: report `needs-user` and name the variable.
-- `services`: Docker or the service failed to start. Check the log. Report `needs-user` if Docker itself is unavailable.
+- `services`: Docker or the service failed to start. Read the log's diagnosis: a port taken by another course's container, or a service not published on its port, needs the user (report `needs-user` with the suggested command), as does Docker itself being unavailable.
 - `sync`: a dependency doesn't resolve. Fix the pins in `pyproject.toml`.
 - `lint` / `format`: run `ruff format` and `ruff check --fix`, then fix what remains by hand.
 - `offline-tests` / `live-run`: read the traceback, check the API against the installed source, and fix the code. Never weaken or delete a test to make it pass unless the test itself contradicts the spec, and say so in `notes`.

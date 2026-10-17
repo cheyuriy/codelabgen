@@ -1,5 +1,62 @@
 {
   "$defs": {
+    "ExtensionState": {
+      "additionalProperties": false,
+      "description": "One extension of a finished course: deepen a topic or add a new one.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "request": {
+          "title": "Request",
+          "type": "string"
+        },
+        "stage": {
+          "default": "gaps",
+          "enum": [
+            "gaps",
+            "research",
+            "digests",
+            "delta",
+            "gate",
+            "lessons",
+            "done"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "allow_renumber": {
+          "default": false,
+          "title": "Allow Renumber",
+          "type": "boolean"
+        },
+        "started": {
+          "format": "date-time",
+          "title": "Started",
+          "type": "string"
+        },
+        "finished": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished"
+        }
+      },
+      "required": [
+        "id",
+        "request"
+      ],
+      "title": "ExtensionState",
+      "type": "object"
+    },
     "LessonState": {
       "additionalProperties": false,
       "properties": {
@@ -187,6 +244,13 @@
       },
       "title": "Tasks",
       "type": "object"
+    },
+    "extensions": {
+      "items": {
+        "$ref": "#/$defs/ExtensionState"
+      },
+      "title": "Extensions",
+      "type": "array"
     },
     "updated": {
       "format": "date-time",

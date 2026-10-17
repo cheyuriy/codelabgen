@@ -101,6 +101,19 @@
           },
           "title": "Services",
           "type": "array"
+        },
+        "port_offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Added to every service's host port so courses never share a service",
+          "title": "Port Offset"
         }
       },
       "title": "Runtime",

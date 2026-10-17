@@ -75,6 +75,23 @@ def next_actions(course: Course) -> dict:
     actions: list[dict] = []
     result: dict[str, Any] = {"phase": state.phase}
 
+    extension = state.extension
+    if extension and extension.stage not in ("lessons",):
+        result["extension"] = {
+            "id": extension.id,
+            "stage": extension.stage,
+            "request": extension.request,
+        }
+        result["actions"] = extension_actions(course, state, extension)
+        result["interrupted"] = interrupted(state)
+        return result
+    if extension:
+        result["extension"] = {
+            "id": extension.id,
+            "stage": extension.stage,
+            "request": extension.request,
+        }
+
     match state.phase:
         case Phase.INIT:
             actions.append(advance(Phase.RECON))
@@ -204,15 +221,140 @@ def next_actions(course: Course) -> dict:
             ]
 
         case Phase.DONE:
-            pass
+            if extension:
+                actions.append(
+                    command(
+                        "codelabgen extend finish", why=f"extension {extension.id} is assembled"
+                    )
+                )
 
-    result["interrupted"] = [
+    result["interrupted"] = interrupted(state)
+    result["actions"] = actions
+    return result
+
+
+def interrupted(state: State) -> list[dict]:
+    return [
         {"task": key, "phase": task.phase, "lesson": task.lesson, "attempts": task.attempts}
         for key, task in state.tasks.items()
         if task.status == "running"
     ]
-    result["actions"] = actions
-    return result
+
+
+def extension_actions(course: Course, state: State, extension) -> list[dict]:
+    """Actions for the extension stages before lesson production."""
+    import yaml
+
+    from codelabgen import extension as ext
+
+    folder = ext.ext_dir(course, extension.id)
+    prefix = f"ext{extension.id}"
+    actions: list[dict] = []
+
+    def pending(task: str) -> bool:
+        return state.tasks.get(task) is None or state.tasks[task].status != "done"
+
+    match extension.stage:
+        case "gaps":
+            if not (folder / "gaps.md").is_file() or not (folder / "hunt.yaml").is_file():
+                actions.append(
+                    agent(
+                        "gap-analyst",
+                        f"{prefix}:gaps",
+                        state,
+                        request=extension.request,
+                        folder=str(folder),
+                    )
+                )
+            else:
+                actions.append(command("codelabgen extend stage research"))
+        case "research":
+            hunts = yaml.safe_load((folder / "hunt.yaml").read_text()) or []
+            for hunt in hunts:
+                task = f"{prefix}:hunt:{hunt['type']}"
+                if pending(task):
+                    actions.append(
+                        agent(
+                            "source-hunter",
+                            task,
+                            state,
+                            type=hunt["type"],
+                            skill=hunt["skill"],
+                            focus=hunt.get("focus"),
+                        )
+                    )
+            if not actions:
+                actions += [
+                    command("codelabgen sources keep-proposed --min-score 0.6"),
+                    command("codelabgen extend stage digests"),
+                ]
+        case "digests":
+            for ids in srcmod.batches(course, 5):
+                actions.append(agent("topic-extractor", batch_key(ids), state, sources=ids))
+            if not actions:
+                actions += [
+                    command("codelabgen topics merge"),
+                    command("codelabgen sources index"),
+                    command("codelabgen extend stage delta"),
+                ]
+        case "delta":
+            proposed = ext.proposed_path(course, extension.id)
+            problems = (
+                ["the proposed curriculum does not exist yet"]
+                if not proposed.is_file()
+                else proposal_problems(course, proposed)
+            )
+            if problems:
+                actions.append(
+                    agent(
+                        "curriculum-architect",
+                        f"{prefix}:architect",
+                        state,
+                        mode="extend",
+                        request=extension.request,
+                        proposal=str(proposed),
+                        gaps=str(folder / "gaps.md"),
+                        problems=problems,
+                    )
+                )
+            elif pending(f"{prefix}:runtime"):
+                actions.append(
+                    agent(
+                        "runtime-planner",
+                        f"{prefix}:runtime",
+                        state,
+                        mode="extend",
+                        proposal=str(proposed),
+                    )
+                )
+            else:
+                actions += [
+                    command("codelabgen extend diff"),
+                    command("codelabgen extend stage gate"),
+                ]
+        case "gate":
+            actions += [
+                ask(
+                    "review the extension",
+                    delta=str(folder / "delta.md"),
+                    new_sources="sources kept during this extension",
+                ),
+                command(
+                    "codelabgen extend apply [--allow-renumber]",
+                    why="after the user approves; renumbering needs explicit consent",
+                ),
+            ]
+    return actions
+
+
+def proposal_problems(course: Course, path) -> list[str] | None:
+    try:
+        cur.load(course, path)
+    except cur.CurriculumError as exc:
+        return exc.problems
+    except Exception as exc:  # schema or YAML errors
+        return [str(exc).splitlines()[0]]
+    return None
 
 
 def curriculum_problems(course: Course) -> list[str] | None:

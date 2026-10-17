@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from codelabgen import checks, diagrams, glossary, report, research, resume, snippets, toc
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
+from codelabgen import extension as ext
 from codelabgen import fetch as fetchmod
 from codelabgen import github as gh
 from codelabgen import record as recordings
@@ -57,6 +58,10 @@ config_app = typer.Typer(no_args_is_help=True, help="Course settings.")
 topics_app = typer.Typer(no_args_is_help=True, help="Topics extracted from the sources.")
 external_app = typer.Typer(no_args_is_help=True, help="External services the user chose.")
 app.add_typer(topics_app, name="topics")
+extend_app = typer.Typer(no_args_is_help=True, help="Extend a finished course.")
+services_app = typer.Typer(no_args_is_help=True, help="The course's Docker Compose services.")
+app.add_typer(services_app, name="services")
+app.add_typer(extend_app, name="extend")
 config_app.add_typer(external_app, name="external")
 app.add_typer(sources_app, name="sources")
 app.add_typer(github_app, name="github")
@@ -332,23 +337,29 @@ def state_stages():
 
 
 @curriculum_app.command("validate")
-def curriculum_validate(course: CourseOpt = None):
+def curriculum_validate(
+    course: CourseOpt = None,
+    file: Annotated[Path | None, typer.Option(help="A proposed curriculum instead")] = None,
+):
     """Check curriculum.yaml: schema, numbering, depth, prerequisites, example storyline."""
-    curriculum = cur.load(Course.find(course))
+    curriculum = cur.load(Course.find(course), file)
     count = len(cur.lessons(curriculum))
     typer.echo(f"ok: {len(curriculum.modules)} modules, {count} lessons")
 
 
 @curriculum_app.command("number")
-def curriculum_number(course: CourseOpt = None):
-    """Assign ids by position and rewrite references (before scaffolding only)."""
+def curriculum_number(
+    course: CourseOpt = None,
+    file: Annotated[Path | None, typer.Option(help="A proposed curriculum (extensions)")] = None,
+):
+    """Assign ids by position and rewrite references (the course file: before scaffolding)."""
     found = Course.find(course)
-    if StateStore(found).load().lessons:
-        fail("lessons are registered already; renumbering now would break their directories")
-    mapping = cur.number(found)
+    if file is None and StateStore(found).load().lessons:
+        fail("lessons are registered already; renumber a proposal with --file instead")
+    mapping = cur.number(found, file)
     for old, new in mapping.items():
         typer.echo(f"{old} -> {new}")
-    cur.load(found)
+    cur.load(found, file)
     typer.echo("ok")
 
 
@@ -917,6 +928,132 @@ def external_clear(course: CourseOpt = None):
     typer.echo("external: cleared")
 
 
+# --- extensions -------------------------------------------------------------------------
+
+
+@extend_app.command("start")
+def extend_start(request: str, course: CourseOpt = None):
+    """Start extending a finished course (clean git tree required)."""
+    found = Course.find(course)
+    extension = ext.start(found, request)
+    folder = ext.ext_dir(found, extension.id)
+    emit(
+        {
+            "extension": extension.id,
+            "folder": str(folder.relative_to(found.root)),
+            "stage": extension.stage,
+        }
+    )
+
+
+@extend_app.command("status")
+def extend_status(course: CourseOpt = None):
+    """Print (JSON) the extension in progress and the history."""
+    state = store_for(course).load()
+    emit(
+        {
+            "current": state.extension.model_dump(mode="json") if state.extension else None,
+            "history": [e.model_dump(mode="json") for e in state.extensions],
+        }
+    )
+
+
+@extend_app.command("stage")
+def extend_stage(stage: str, course: CourseOpt = None):
+    """Move the extension to its next stage."""
+    extension = ext.set_stage(Course.find(course), stage)
+    typer.echo(f"extension {extension.id}: {extension.stage}")
+
+
+@extend_app.command("diff")
+def extend_diff(course: CourseOpt = None):
+    """Compare the proposed curriculum with the course; write delta.md (JSON summary)."""
+    found = Course.find(course)
+    extension = ext.current(found)
+    proposed = ext.proposed_path(found, extension.id)
+    delta = ext.compute_delta(found, proposed)
+    path = ext.render_delta(found, delta, extension.id)
+    emit(
+        {
+            "delta": str(path.relative_to(found.root)),
+            "added": [lesson.id for lesson in delta.added],
+            "rewrite": [new.id for _, new, _ in delta.changed],
+            "retitled": [new.id for _, new in delta.retitled],
+            "moved": {old.id: new.id for old, new in delta.moved},
+            "removed": [lesson.id for lesson in delta.removed],
+            "stale": ext.stale_lessons(found, delta),
+        }
+    )
+
+
+@extend_app.command("apply")
+def extend_apply(
+    course: CourseOpt = None,
+    allow_renumber: Annotated[
+        bool, typer.Option(help="The user agreed that existing lessons may be renumbered")
+    ] = False,
+):
+    """Merge the approved proposal: register, rewrite, mark stale, move if allowed."""
+    emit(ext.apply(Course.find(course), allow_renumber))
+
+
+@extend_app.command("finish")
+def extend_finish(course: CourseOpt = None):
+    """Close the extension once the course is assembled again (phase done)."""
+    extension = ext.finish(Course.find(course))
+    typer.echo(f"extension {extension.id}: done")
+
+
+@sources_app.command("keep-proposed")
+def sources_keep_proposed(
+    course: CourseOpt = None,
+    min_score: Annotated[
+        float, typer.Option(help="Keep proposed sources at least this good")
+    ] = 0.6,
+):
+    """Keep proposed sources above a score, drop the rest (extensions)."""
+    emit(srcmod.keep_proposed(Course.find(course), min_score))
+
+
+# --- services -----------------------------------------------------------------------------
+
+
+def _compose(found: Course, *args: str) -> int:
+    from codelabgen.verify import compose_argv, explain_port_conflict
+
+    if not (found.root / "docker-compose.yml").is_file():
+        typer.echo("this course uses no services")
+        return 0
+    proc = subprocess.run(
+        compose_argv(found, *args), cwd=found.root, capture_output=True, text=True
+    )
+    output = proc.stdout + proc.stderr
+    if proc.returncode != 0:
+        output += explain_port_conflict(output)
+    typer.echo(output.strip())
+    return proc.returncode
+
+
+@services_app.command("up")
+def services_up(
+    names: Annotated[list[str] | None, typer.Argument()] = None, course: CourseOpt = None
+):
+    """Start the course's services (all, or the named ones) and wait until healthy."""
+    raise typer.Exit(_compose(Course.find(course), "up", "-d", "--wait", *(names or [])))
+
+
+@services_app.command("down")
+def services_down(course: CourseOpt = None):
+    """Stop the course's services (data volumes are kept)."""
+    raise typer.Exit(_compose(Course.find(course), "stop"))
+
+
+@services_app.command("status")
+def services_status(course: CourseOpt = None):
+    """Show the course's service containers."""
+    raise typer.Exit(_compose(Course.find(course), "ps"))
+
+
 # --- topics -----------------------------------------------------------------------------
 
 
@@ -1035,6 +1172,7 @@ def main() -> None:
         research.ResearchError,
         srcmod.SourcesError,
         topicsmod.TopicsError,
+        ext.ExtensionError,
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
         sys.exit(2)

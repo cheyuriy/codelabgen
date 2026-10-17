@@ -19,4 +19,6 @@ The orchestrator's prompt gives you the course directory, and possibly the user'
 5. When you get the user's answers: record each chosen provider with `codelabgen config external add <provider> --model … --env …`, add its variables to `env` in `curriculum.yaml`, and update `runtime.md`.
 6. `codelabgen curriculum validate` must print `ok`.
 
+**Extend mode** (the prompt says `mode: extend` and gives a proposal path): plan only for the new and rewritten lessons, editing the proposal file instead of `.codelabgen/curriculum.yaml`, and validate with `--file <proposal>`. Add new questions to `research/runtime.md` under a heading for this extension. If nothing new is needed, say so and change nothing.
+
 Do not change lesson titles, order or content. Do not change course state. End with the status JSON (`"stage": "curriculum"`): in `notes`, the runtime, the services, and the questions for the user, numbered.

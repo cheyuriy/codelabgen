@@ -54,7 +54,8 @@ Run from the main session, with `--course <dir>` on every command:
 3. **Check:** `codelabgen check all`. Fix every problem in the page that has it. For problems in a lesson's docs, send that lesson back (`codelabgen state set <id> verified` or `readalong` with a note) and let its writer fix it, then return here. Problems in generated files mean a generator bug: report it to the user.
 4. **Build the site:** `codelabgen site build` must succeed (strict mode).
 5. **Commit:** `codelabgen commit -m "<message>"`, for example "Course: LangGraph на практике, lessons 1.1–1.3".
-6. **Done:** `codelabgen state phase done`. Tell the user how to read the course: the course `README.md`, `./run.sh site serve`, and `./run.sh <id>` to run a lesson.
+6. **Stop the services:** `codelabgen services down` (data volumes stay; `./run.sh <id>` starts them again).
+7. **Done:** `codelabgen state phase done`. Tell the user how to read the course: the course `README.md`, `./run.sh site serve`, and `./run.sh <id>` to run a lesson.
 
 `codelabgen site serve` starts a local preview at http://127.0.0.1:8000 with live reload. It runs until stopped, so start it in the background only when the user asks for a preview.
 

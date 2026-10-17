@@ -76,7 +76,13 @@ def scaffold_course(course: Course) -> ScaffoldReport:
         catalog = services.resolve(used, course.meta)
     except services.UnknownService as exc:
         raise ScaffoldError(str(exc)) from exc
-    if config.runtime.services != used:
+    if config.runtime.port_offset is None:
+        # New courses get their own host ports. A course whose .env already exists keeps
+        # the standard ports its .env was written for.
+        exists = (root / ".env").exists()
+        config.runtime.port_offset = 0 if exists else services.choose_offset(root)
+    catalog = [services.with_offset(s, config.runtime.port_offset) for s in catalog]
+    if config.runtime.services != used or config != course.load_config():
         config.runtime.services = used
         course.save_config(config)
 

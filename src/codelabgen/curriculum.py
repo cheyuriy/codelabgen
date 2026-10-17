@@ -63,8 +63,9 @@ def node_dir_name(node: CurriculumNode) -> str:
     return f"{node.id}-{node.slug}"
 
 
-def load(course: Course) -> Curriculum:
-    path = course.meta / "curriculum.yaml"
+def load(course: Course, path: Path | None = None) -> Curriculum:
+    """The course curriculum, or a proposed one at `path`, fully validated."""
+    path = path or course.meta / "curriculum.yaml"
     if not path.is_file():
         raise CurriculumError([f"{path} does not exist"])
     curriculum = Curriculum.model_validate(yaml.safe_load(path.read_text()))
@@ -100,13 +101,13 @@ def validate_references(course: Course, curriculum: Curriculum) -> list[str]:
     return problems
 
 
-def number(course: Course) -> dict[str, str]:
+def number(course: Course, path: Path | None = None) -> dict[str, str]:
     """Give every node the id of its position; rewrite references to the old ids.
 
     Works on the raw YAML, so nodes may lack ids or carry stale ones (after the
     architect reorders lessons). Returns old id -> new id for the changed ones.
     """
-    path = course.meta / "curriculum.yaml"
+    path = path or course.meta / "curriculum.yaml"
     data = yaml.safe_load(path.read_text())
     mapping: dict[str, str] = {}
 

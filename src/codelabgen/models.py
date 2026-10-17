@@ -41,6 +41,9 @@ class Runtime(Model):
     kind: str | None = Field(None, description="Ecosystem, e.g. 'python-uv', 'node', 'go'")
     per: Literal["module", "lesson"] = "module"
     services: list[str] = Field(default_factory=list, description="Docker Compose services")
+    port_offset: int | None = Field(
+        None, description="Added to every service's host port so courses never share a service"
+    )
 
 
 class External(Model):
@@ -143,13 +146,36 @@ class TaskState(Model):
     finished: datetime | None = None
 
 
+ExtensionStage = Literal["gaps", "research", "digests", "delta", "gate", "lessons", "done"]
+EXTENSION_STAGES: list[str] = ["gaps", "research", "digests", "delta", "gate", "lessons", "done"]
+
+
+class ExtensionState(Model):
+    """One extension of a finished course: deepen a topic or add a new one."""
+
+    id: int
+    request: str
+    stage: ExtensionStage = "gaps"
+    allow_renumber: bool = False
+    started: datetime = Field(default_factory=now)
+    finished: datetime | None = None
+
+
 class State(Model):
     schema_version: int = 1
     phase: Phase = Phase.INIT
     approved_gates: list[Phase] = Field(default_factory=list)
     lessons: dict[str, LessonState] = Field(default_factory=dict)
     tasks: dict[str, TaskState] = Field(default_factory=dict)
+    extensions: list[ExtensionState] = Field(default_factory=list)
     updated: datetime = Field(default_factory=now)
+
+    @property
+    def extension(self) -> ExtensionState | None:
+        """The extension in progress, if any."""
+        if self.extensions and self.extensions[-1].stage != "done":
+            return self.extensions[-1]
+        return None
 
     @field_validator("lessons")
     @classmethod

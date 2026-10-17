@@ -2,10 +2,10 @@
 
 Steps, stopping at the first failure:
   env            required variables are set (course .env + lesson .env)
-  services       docker compose services the lesson needs are up and healthy
   sync           `uv sync --all-packages` in the module workspace
   lint, format   ruff check / ruff format --check in the lesson dir
   offline-tests  pytest in the lesson dir
+  services       docker compose services the live run needs are up and healthy
   live-run       the spec's run_cmd, with its timeout
   record         terminal recordings listed in the spec (skipped without asciinema/agg)
   diagrams       D2 / Graphviz sources rendered to SVG
@@ -17,6 +17,7 @@ the outcome to `result.json` next to it.
 
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 import time
@@ -97,24 +98,38 @@ def verify(course: Course, lesson_id: str, live: bool = True) -> RunResult:
         record("live-run", 1, 0, f"no spec: .codelabgen/lessons/{lesson_id}/spec.yaml is missing\n")
         return finish(False)
 
-    steps: list[Step] = []
-    needed = lesson_services(curriculum, course)[lesson_id]
-    if needed:
-        compose = ["docker", "compose", "-f", str(course.root / "docker-compose.yml")]
-        steps.append(Step("services", [*compose, "up", "-d", "--wait", *needed], course.root, 300))
     uv_run = ["uv", "run", "--package", lesson.project]
-    steps += [
+    steps = [
         Step("sync", ["uv", "sync", "--all-packages"], module_dir, 900),
         Step("lint", [*uv_run, "--frozen", "ruff", "check", "."], lesson_dir, 120),
         Step("format", [*uv_run, "--frozen", "ruff", "format", "--check", "."], lesson_dir, 120),
         Step("offline-tests", [*uv_run, "--frozen", "pytest", "-q", "tests"], lesson_dir, 600),
     ]
     if live:
+        # Services are only for the live run: offline tests never need them.
+        needed = lesson_services(curriculum, course)[lesson_id]
+        if needed:
+            steps.append(
+                Step(
+                    "services",
+                    compose_argv(course, "up", "-d", "--wait", *needed),
+                    course.root,
+                    300,
+                )
+            )
         live_argv = [*uv_run, "--frozen", *shlex.split(spec.run_cmd)]
         steps.append(Step("live-run", live_argv, lesson_dir, spec.run_timeout_s))
 
     for step in steps:
         code, seconds, log = run_step(step, process_env)
+        if step.name == "services":
+            if code != 0:
+                log += explain_port_conflict(log)
+            else:
+                problems = check_published(course, lesson_services(curriculum, course)[lesson_id])
+                if problems:
+                    code = 1
+                    log += "\n--- port check ---\n" + "\n".join(problems) + "\n"
         if not record(step.name, code, seconds, log):
             return finish(False)
 
@@ -136,6 +151,70 @@ def verify(course: Course, lesson_id: str, live: bool = True) -> RunResult:
     log = "".join(f"updated {p.relative_to(course.root)}\n" for p in changed)
     log += "".join(f"problem: {p}\n" for p in problems)
     return finish(record("snippets", 1 if problems else 0, 0, log or "nothing to sync\n"))
+
+
+def compose_argv(course: Course, *args: str) -> list[str]:
+    return ["docker", "compose", "-f", str(course.root / "docker-compose.yml"), *args]
+
+
+def check_published(course: Course, names: list[str]) -> list[str]:
+    """Each service must really be published on its expected host port.
+
+    A container can be healthy (its healthcheck runs inside it) without its port
+    mapping, and then the lesson would silently reach whatever else listens there.
+    """
+    from codelabgen import services
+
+    offset = course.load_config().runtime.port_offset or 0
+    problems = []
+    for service in services.resolve(names, course.meta):
+        for host, container in services.published_ports(services.with_offset(service, offset)):
+            proc = subprocess.run(
+                compose_argv(course, "port", service.name, str(container)),
+                cwd=course.root,
+                capture_output=True,
+                text=True,
+            )
+            published = proc.stdout.strip().rsplit(":", 1)[-1]
+            if proc.returncode != 0 or published != str(host):
+                problems.append(
+                    f"{service.name}: container port {container} is not published on host port "
+                    f"{host} (got {published or 'nothing'}). Recreate it: "
+                    f"docker compose up -d --force-recreate {service.name}"
+                )
+    return problems
+
+
+def explain_port_conflict(log: str) -> str:
+    """Name the container holding a port that a service could not bind."""
+    ports = sorted(
+        set(re.findall(r"(?:Bind for [\d.:\[\]]*?:|port )(\d{2,5})\b.*?(?:allocated|in use)", log))
+    )
+    notes = []
+    for port in ports:
+        proc = subprocess.run(
+            [
+                "docker",
+                "ps",
+                "--filter",
+                f"publish={port}",
+                "--format",
+                '{{.Names}}\t{{.Label "com.docker.compose.project"}}',
+            ],
+            capture_output=True,
+            text=True,
+        )
+        for line in proc.stdout.splitlines():
+            name, _, project = line.partition("\t")
+            stop = f"docker compose -p {project} stop" if project else f"docker stop {name}"
+            notes.append(
+                f"port {port} is used by container {name}"
+                + (f" (compose project {project}, probably another course)" if project else "")
+                + f". Stop it with: {stop}"
+            )
+    if not notes:
+        return ""
+    return "\n--- diagnosis ---\n" + "\n".join(notes) + "\n"
 
 
 def run_step(step: Step, env: dict[str, str]) -> tuple[int, float, str]:
