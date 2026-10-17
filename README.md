@@ -68,7 +68,13 @@ Suggested evaluation set, one per runtime:
 /codelabgen:new "chi (Go HTTP router)" --target ~/Documents/courses/eval-chi --lang en
 ```
 
-After each finishes: `codelabgen eval --course <dir> --reverify --site`, fill in `eval-human.md`, and share `eval.md`, `report.md` and the human notes.
+`/codelabgen:new` stops at the source review. Continue each course to the end:
+
+1. `/codelabgen:sources --course <dir>`: approve (or edit) `.codelabgen/sources.md`. Topics and the curriculum are drafted, and it stops at the plan review.
+2. `/codelabgen:plan --course <dir>`: approve the plan and answer the runtime questions (LLM provider, keys). The course is scaffolded and all lessons are produced.
+3. `/codelabgen:build --course <dir>`: assemble the course and the site.
+
+`/codelabgen:resume <dir>` continues from wherever a course stopped. When a course is done: `codelabgen eval --course <dir> --reverify --site`, fill in `eval-human.md`, and share `eval.md`, `report.md` and the human notes.
 
 ## Development
 

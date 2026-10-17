@@ -266,6 +266,13 @@ def eval_cmd(
     from codelabgen import evaluate
 
     found = Course.find(course)
+    state = StateStore(found).load()
+    if not state.lessons:
+        fail(
+            f"nothing to evaluate yet: the course is in phase {state.phase} and has no lessons. "
+            "Continue it first with /codelabgen:resume (it stops at the source and plan reviews), "
+            "then evaluate the finished course."
+        )
     evaluate.evaluate(found, reverify=reverify, site=site)
     typer.echo((found.meta / "eval.md").read_text())
 
