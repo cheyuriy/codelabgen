@@ -156,3 +156,28 @@ def test_repo_slug(url, slug):
 def test_repo_slug_rejects_other_hosts():
     with pytest.raises(research.ResearchError):
         research.repo_slug("https://gitlab.com/a/b")
+
+
+def test_overview_and_decide(course):
+    src.add(
+        course,
+        [
+            row("https://ex.com/good", score=0.8),
+            row("https://ex.com/weak", score=0.3),
+            row("https://docs.x.dev", "official-docs", score=0.95),
+        ],
+    )
+    groups = src.overview(course)
+    assert [g["type"] for g in groups] == ["official-docs", "article"]
+    article = {s["url"]: s["default_keep"] for s in groups[1]["sources"]}
+    assert article == {"https://ex.com/good": True, "https://ex.com/weak": False}
+
+    weak = next(s.id for s in src.load(course) if s.url.endswith("weak"))
+    good = next(s.id for s in src.load(course) if s.url.endswith("good"))
+    assert src.decide(course, keep=[weak], drop=[good], default=True) == {"kept": 2, "dropped": 1}
+    statuses = {s.url: s.status for s in src.load(course)}
+    assert (
+        statuses["https://ex.com/weak"] == "kept" and statuses["https://ex.com/good"] == "dropped"
+    )
+    with pytest.raises(src.SourcesError, match="unknown source ids: nope"):
+        src.decide(course, keep=["nope"], drop=[])

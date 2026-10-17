@@ -402,3 +402,55 @@ def keep_proposed(course: Course, min_score: float) -> dict:
                 dropped.append(source.id)
         save(course, items)
     return {"kept": kept, "dropped": dropped}
+
+
+def overview(course: Course) -> list[dict]:
+    """Sources grouped by type, as the orchestrator presents them to the user."""
+    items = load(course)
+    groups = []
+    for type_ in TYPE_ORDER:
+        group = [s for s in items if s.type == type_]
+        if not group:
+            continue
+        groups.append(
+            {
+                "type": type_,
+                "sources": [
+                    {
+                        "id": s.id,
+                        "title": s.title,
+                        "url": s.url,
+                        "score": s.score,
+                        "reason": s.reason,
+                        "status": s.status,
+                        "default_keep": s.status in ("kept", "user")
+                        or (s.status == "proposed" and s.score >= KEEP_THRESHOLD),
+                    }
+                    for s in group
+                ],
+            }
+        )
+    return groups
+
+
+def decide(course: Course, keep: list[str], drop: list[str], default: bool = False) -> dict:
+    """Set sources to kept or dropped by id. With `default`, every still-proposed source
+    is decided by its score first (the sheet's default ticks); `keep`/`drop` then override."""
+    with FileLock(str(course.meta / "sources.lock"), timeout=30):
+        items = load(course)
+        known = {s.id for s in items}
+        unknown = [i for i in [*keep, *drop] if i not in known]
+        if unknown:
+            raise SourcesError(f"unknown source ids: {', '.join(unknown)}")
+        for source in items:
+            if default and source.status == "proposed":
+                source.status = "kept" if source.score >= KEEP_THRESHOLD else "dropped"
+            if source.id in keep and source.status != "user":
+                source.status = "kept"
+            if source.id in drop:
+                source.status = "dropped"
+        save(course, items)
+    counts: dict[str, int] = {}
+    for source in items:
+        counts[source.status] = counts.get(source.status, 0) + 1
+    return counts

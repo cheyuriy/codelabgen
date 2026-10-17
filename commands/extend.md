@@ -10,4 +10,4 @@ The first argument is the course directory. The rest is the user's request, for 
 Load the `codelabgen-orchestrator` skill and follow its **Extensions** section, using the main loop (`codelabgen state next`).
 
 - If an extension is already in progress, continue it instead of starting a new one, and say so.
-- Stop at the extension's review gate. Apply the change only after the user approves it, and renumber existing lessons only with their explicit consent.
+- Ask the extension's review gate in the session (AskUserQuestion) and continue after the answer. Apply the change only after the user approves it, and renumber existing lessons only with their explicit consent. Run on to the end: lessons, assembly, commit, `extend finish`.

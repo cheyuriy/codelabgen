@@ -148,9 +148,9 @@ def next_actions(course: Course) -> dict:
         case Phase.GATE_SOURCES:
             actions += [
                 ask(
-                    "review the sources",
-                    sheet=".codelabgen/sources.md",
-                    then="codelabgen sources apply",
+                    "review the sources in the session (AskUserQuestion)",
+                    data="codelabgen sources overview",
+                    then="codelabgen sources decide --default | --keep … --drop …",
                 ),
                 advance(Phase.TOPICS, approved=True),
             ]

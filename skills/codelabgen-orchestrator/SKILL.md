@@ -1,6 +1,6 @@
 ---
 name: codelabgen-orchestrator
-description: Runs and resumes the codelabgen pipeline from the main session — follows `codelabgen state next`, dispatches the worker agents with task tracking, records state through the `codelabgen` CLI, handles verify failures, reviews and rework, and stops for the user at gates. Load when a /codelabgen command asks for it.
+description: Runs and resumes the codelabgen pipeline from the main session — follows `codelabgen state next`, dispatches the worker agents with task tracking, records state through the `codelabgen` CLI, handles verify failures, reviews and rework, and asks the user its review questions inside the session. Load when a /codelabgen command asks for it.
 user-invocable: false
 ---
 
@@ -9,6 +9,18 @@ user-invocable: false
 You drive course generation from the main session. Only you start subagents, and only you change course state (see the state-protocol skill). Workers do one job each and end with a status JSON.
 
 The phases, in order: `init → recon → sources → gate_sources → topics → curriculum → gate_plan → scaffold → lessons → assembly → done`. Every command (new, sources, plan, lesson, build, resume) runs the same loop from wherever the course is.
+
+## Run to the end, ask in the session
+
+One command runs the whole course: from `init` to `done`, then the evaluation. Never end your turn telling the user to run another command, edit a file or "come back when ready".
+
+When the user must decide (the review gates, a version to confirm, a blocked lesson), **ask with the AskUserQuestion tool**, right there, then continue with the answer:
+- Put the information they need in the chat just before the question: a compact summary, not a file to open.
+- Offer concrete options, with the recommended one first, marked "(Recommended)". The tool adds a free-text "Other" answer by itself; mention it when free text is useful ("Other: paste URLs to add").
+- At most 4 questions per call and 4 options per question. Split bigger choices into several calls.
+- Treat a free-text answer as a request, act on it, and ask again until the user approves.
+
+The only time the user acts outside the chat is for **secrets**: never ask for API keys in the conversation. Tell them which variables to put in the course `.env` (full path), then ask a question with the option "Done, the keys are in .env". Check with `codelabgen env check`, and ask again if anything is still missing.
 
 ## Before you start
 
@@ -23,12 +35,12 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 - `actions`: what to do now, in order. Each has a `do`:
   - `run-agent`: start the named worker, with the `task` key and `args` (see "Starting a worker")
   - `command`: a codelabgen command you run yourself
-  - `ask-user`: stop and talk to the user (review gates, missing secrets, a version to confirm)
+  - `ask-user`: ask the user in the session (review gates, missing secrets, a version to confirm), then go on
   - `advance`: move to the next phase (`run` holds the exact command; `--approved` only after the user approved)
 - `lessons` / `blocked` in the `lessons` phase: the work items (see "Lesson production")
 - `interrupted`: tasks whose worker stopped midway in an earlier session
 
-Repeat: run `state next`, do its actions (independent `run-agent` actions in parallel, up to `budgets.parallel_agents` at once, default 4), then run `state next` again. Stop when it asks for the user, or when the phase is `done`. The phase sections below say how to do each step well; `state next` says which steps are left.
+Repeat: run `state next`, do its actions (independent `run-agent` actions in parallel, up to `budgets.parallel_agents` at once, default 4), then run `state next` again. For `ask-user` actions, ask in the session (see above) and continue. Stop only when the phase is `done` and the evaluation is shown, or when the user tells you to stop. The phase sections below say how to do each step well; `state next` says which steps are left.
 
 ## Tasks and resuming
 
@@ -54,7 +66,7 @@ Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson
 ### Phase `recon`: what is this technology?
 
 1. Run **tech-scout** with the course directory, the topic and the version (if given).
-2. Read `.codelabgen/research/overview.md`. If the user gave no version, show the proposed one in a single line and record it: `codelabgen config set version <v>`. If the identity of the technology was ambiguous, confirm it with the user before going on.
+2. Read `.codelabgen/research/overview.md`. If the user gave no version, ask (AskUserQuestion) with the proposed version as the recommended option and the previous stable one as an alternative, then record the answer: `codelabgen config set version <v>`. If the identity of the technology was ambiguous, ask which one is meant in the same call.
 3. `codelabgen state phase sources`.
 
 ### Phase `sources`: find sources
@@ -77,14 +89,20 @@ Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson
 
 3. As hunters finish, give the user one line each (type, how many, any gap). A hunter that fails gets one retry. If it fails again, report the gap and move on.
 4. Check that `.codelabgen/research/deprecations.md` exists. If it doesn't, run the official-blog hunter again with only that task.
-5. `codelabgen sources render`, then `codelabgen state phase gate_sources`.
+5. `codelabgen sources render` (a record of the list, for later), then `codelabgen state phase gate_sources`.
 
 ### Phase `gate_sources`: the user reviews sources
 
-1. Tell the user the review sheet is ready: `.codelabgen/sources.md` (give the full path). Explain it in two sentences: ticked sources are used, they can untick or tick, and add URLs at the end. Summarize what was found per type, the strongest sources, and the gaps.
-2. Wait for the user. They can edit the file, or tell you their changes in the chat. For chat edits, update the ticks in `sources.md` yourself.
-3. When the user says it is done: `codelabgen sources apply` and report the result (kept, dropped, added). If the user added sources, run the matching hunter for each new one to check it, fill in a real title, type and roles, and re-add it (re-adding merges).
-4. Only when the user explicitly approves: `codelabgen state phase topics --approved`, then continue with phase `topics`.
+1. `codelabgen sources overview` gives the sources grouped by type, each with `default_keep` (score 0.6 or more, or added by the user).
+2. In the chat, show per type: how many were found and how many would be kept, and the 1–2 strongest titles with a few words each. Name the gaps (types with nothing good).
+3. Ask (AskUserQuestion), single choice:
+   - "Accept the proposed selection (Recommended)": keep what `default_keep` says
+   - "Review by type": go through the types
+   - "Add sources first": they type URLs in "Other" (or you ask a follow-up)
+4. **Review by type:** for each type with sources, ask a **multi-select** question ("Which <type> sources should the course use?") with one option per source: the label is a short title, the description is the score and the reason. Mention which ones are proposed (the default). Up to 4 options per question and 4 questions per call; split long types into several questions ("official-docs, 1–4", "official-docs, 5–8"). Selected means keep.
+5. Record the decisions: `codelabgen sources decide --default` for "accept"; for a review, `codelabgen sources decide --keep <id> … --drop <id> …` covering every reviewed source.
+6. **Added URLs** (from any "Other" answer): add each with `codelabgen sources add` (`"status": "user"`, a best-guess type and roles, the URL as title), then run the matching hunter for each to check it and fill in a real title, type and roles (re-adding merges).
+7. Report the result in one line (kept, dropped, added), then `codelabgen state phase topics --approved` and continue straight on with phase `topics`.
 
 ## Curriculum
 
@@ -105,18 +123,21 @@ Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson
 
 ### Phase `gate_plan`: the user reviews the plan
 
-1. Show the user the plan: the path of `.codelabgen/plan.md`, plus a compact summary in the chat (modules with their lessons, one line each; the example storyline; the services). Ask the runtime planner's **questions** from `.codelabgen/research/runtime.md`, numbered, with the suggested defaults. These are usually which LLM provider and model to use. Tell the user which keys they will need.
-2. Handle feedback in rounds:
+1. Show the plan in the chat: modules with their lessons, one line each (id, title, what it teaches); the example storyline in one or two lines; services and external services. Mention `.codelabgen/plan.md` as the full version, but don't require reading it.
+2. Ask (AskUserQuestion), in one call:
+   - "Do you approve this plan?": "Approve (Recommended)", "Change the plan" (they describe the change in "Other", or you ask a follow-up)
+   - one question per runtime planner question from `.codelabgen/research/runtime.md`, with its options (for example the LLM providers and models) and the suggested default first. Skip this if there are none.
+3. Handle the answers in rounds, then ask again:
    - Structure changes ("merge 2.3 and 2.4", "add a lesson on streaming", "skip deployment"): `codelabgen state task reset curriculum:architect` and `… curriculum:runtime`, run **curriculum-architect** with the feedback, then **runtime-planner**, then validate and render again.
    - Small wording changes: edit `curriculum.yaml` yourself, then validate and render.
    - Answers to the questions: run **runtime-planner** with the answers. It records them (`codelabgen config external add …`) and adds the variables to `env`. Then validate and render.
-3. Only when the user explicitly approves the plan and every question is answered: `codelabgen state phase scaffold --approved`.
+4. Only when the user approved the plan and every question is answered: `codelabgen state phase scaffold --approved`, then continue straight on.
 
 ### Phase `scaffold`: prepare the course directory
 
 1. `codelabgen scaffold course`. It writes the module workspaces and lesson directories, `docker-compose.yml`, `.env.example` and `.env`, initializes git, and registers the lessons.
 2. `codelabgen toc`, which writes `run.sh` and the READMEs.
-3. If the course needs secrets: tell the user to fill them in the course `.env` (full path), listing each variable and where to get it (`codelabgen env list`). Wait until `codelabgen env check` prints `ok`.
+3. If the course needs secrets: list each variable and where to get it (`codelabgen env list`), tell the user to put them in the course `.env` (full path), and ask (AskUserQuestion) with the option "Done, the keys are in .env". Repeat until `codelabgen env check` prints `ok`.
 4. `codelabgen state phase lessons`, then continue with lesson production.
 
 ## Lesson production
@@ -139,7 +160,7 @@ Wrap each worker run in its task (`state task start` before, `state task done` a
 
 When the verify fix budget runs out, `verify --update-state` blocks the lesson by itself (`"stage": "blocked"` in its output). Stop working on that lesson.
 
-`needs-user` from any worker: block the lesson with the worker's reason and tell the user what is needed.
+`needs-user` from any worker: block the lesson with the worker's reason, tell the user what is needed, and ask (AskUserQuestion) how to go on: for example "Done, retry the lesson" (then `codelabgen state unblock <id>`), "Skip this lesson for now", or a free-text instruction. Meanwhile, other modules' lessons can continue.
 
 ### Rework after a review
 
@@ -151,7 +172,7 @@ The reviewer returns `rework_from`. Move the lesson back so the right workers ru
 | `readalong` | `codelabgen state set <id> verified --note "review round N"` | readalong-writer, notes-writer, reviewer |
 | `notes` | `codelabgen state set <id> readalong --note "review round N"` | notes-writer, reviewer |
 
-The CLI refuses once the review budget is used up. Then show the user the open items from `review.md` and ask whether to accept the lesson as it is (`codelabgen state set <id> reviewed`) or block it.
+The CLI refuses once the review budget is used up. Then show the open items from `review.md` in the chat and ask (AskUserQuestion): "Accept the lesson as it is" (`codelabgen state set <id> reviewed`, then `done`) or "Block it for now".
 
 After any review, apply the `[spec]` items yourself: edit `.codelabgen/lessons/<id>/spec.yaml` so it matches the verified behaviour (usually an experiment's expected outcome), then `codelabgen state log spec-fixed --lesson <id>`. Later lessons build on these specs.
 
@@ -163,7 +184,15 @@ When `state next` returns lessons from different modules, run their pipelines si
 
 ## Assembly
 
-When `codelabgen state next` reports that all lessons are done, say so and offer to assemble the course (`/codelabgen:build`). When the user agrees, or when you run as part of `/codelabgen:resume`, follow the assembly procedure in the site-assembly skill: glossary, `toc`, `check all`, `site build`, commit, phase `done`.
+When `codelabgen state next` reports that all lessons are done, continue straight into assembly: follow the assembly procedure in the site-assembly skill (glossary, `toc`, `check all`, `site build`, commit, services down, phase `done`).
+
+## Finishing: evaluation
+
+After phase `done`:
+1. `codelabgen report` and `codelabgen eval --site`. Show the overall score, the dimensions, anything missing, and the timings, in a few lines.
+2. Ask (AskUserQuestion): "Score two sample lessons now?" with "Yes, quickly", "Later (eval-human.md)" and "No".
+3. On yes: for each lesson in `.codelabgen/eval-human.md`, say where to read it (paths, and `./run.sh site serve` for the site), then ask the six questions from that file as single-choice 1–5 (two calls of three questions, labels "5 — excellent" … "1 — poor"). Write the scores into `eval-human.md` (replace each `[_]` with the digit) and run `codelabgen eval` again to include them.
+4. End with how to use the course: the course README, `./run.sh <id>`, `./run.sh site serve`.
 
 ## Extensions
 
@@ -174,7 +203,7 @@ When `codelabgen state next` reports that all lessons are done, say so and offer
 3. **`research`:** one **source-hunter** per entry of `hunt.yaml` (tasks `ext<n>:hunt:<type>`), passing its `focus`. Then `codelabgen sources keep-proposed --min-score 0.6` and `codelabgen extend stage digests`.
 4. **`digests`:** **topic-extractor** batches as in phase `topics`, then `topics merge`, `sources index`, and `extend stage delta`.
 5. **`delta`:** **curriculum-architect** in extend mode (task `ext<n>:architect`, with the proposal path), then **runtime-planner** in extend mode (task `ext<n>:runtime`), then `codelabgen extend diff` and `extend stage gate`.
-6. **`gate`:** show the user `.codelabgen/extensions/<n>/delta.md`: the new lessons, rewritten lessons, renamed ones, renumbering, and lessons to re-check. Also list the sources kept during this extension and ask about any new runtime questions. Feedback goes back to the architect (`codelabgen state task reset ext<n>:architect`). When the user approves: `codelabgen extend apply`. Add `--allow-renumber` only if the delta renumbers lessons and the user explicitly agreed to it. For new secrets, wait for `codelabgen env check`.
+6. **`gate`:** summarize `.codelabgen/extensions/<n>/delta.md` in the chat (new lessons, rewritten lessons, renamed ones, renumbering, lessons to re-check, sources kept during this extension, new runtime questions) and ask (AskUserQuestion): "Apply (Recommended)", "Change it" (free text, back to the architect with `codelabgen state task reset ext<n>:architect`); if the delta renumbers lessons, a separate question "Renumber existing lessons?" with "Yes" / "No, place new lessons at the end instead". On approval: `codelabgen extend apply`, adding `--allow-renumber` only if they said yes to renumbering. For new secrets, the `.env` procedure from "Run to the end".
 7. **Lessons:** the course is back in phase `lessons`. Produce the new and rewritten lessons as usual.
    - **Stale lessons** (`"stage": "stale"` in `state next`): run `codelabgen verify <id>`. If it fails, `codelabgen state set <id> spec --note "stale: <cause>"` and redo from the code. If it passes, run **lesson-reviewer** with the note "This lesson builds on lesson X, which was rewritten; check that it still agrees". On pass: `state set <id> reviewed`, then `done`. On revise: rework as for any review.
 8. **Assembly** as usual. Commit with a message naming the extension: `codelabgen commit -m "Extension <n>: <request>"`. Then `codelabgen extend finish`.

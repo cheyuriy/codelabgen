@@ -896,6 +896,25 @@ def sources_list(
             typer.echo(s.model_dump_json(exclude_none=True))
 
 
+@sources_app.command("overview")
+def sources_overview(course: CourseOpt = None):
+    """Print (JSON) the sources grouped by type, with the default keep/drop decision."""
+    emit(srcmod.overview(Course.find(course)))
+
+
+@sources_app.command("decide")
+def sources_decide(
+    course: CourseOpt = None,
+    keep: Annotated[list[str] | None, typer.Option(help="Source id to keep, repeatable")] = None,
+    drop: Annotated[list[str] | None, typer.Option(help="Source id to drop, repeatable")] = None,
+    default: Annotated[
+        bool, typer.Option(help="Decide all proposed sources by score first")
+    ] = False,
+):
+    """Record the user's source decisions (no file editing needed)."""
+    emit(srcmod.decide(Course.find(course), keep or [], drop or [], default))
+
+
 @sources_app.command("render")
 def sources_render(course: CourseOpt = None):
     """Write the review sheet .codelabgen/sources.md."""
