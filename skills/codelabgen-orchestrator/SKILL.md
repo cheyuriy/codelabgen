@@ -8,7 +8,7 @@ user-invocable: false
 
 You drive course generation from the main session. Only you start subagents, and only you change course state (see the state-protocol skill). Workers do one job each and end with a status JSON.
 
-> This version covers **research** (phases `init` to `gate_sources`), **lesson production** (`lessons`) and **assembly** (`assembly`). Topic extraction and curriculum design (phases `topics` to `gate_plan`) come in the next milestone.
+> This version covers every phase. `/codelabgen:resume` (continue any course from its state) comes in the next milestone; until then each command below continues from where the course is.
 
 The phases, in order: `init → recon → sources → gate_sources → topics → curriculum → gate_plan → scaffold → lessons → assembly → done`. `codelabgen state show` tells you where a course is. Continue from there.
 
@@ -62,8 +62,40 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 1. Tell the user the review sheet is ready: `.codelabgen/sources.md` (give the full path). Explain it in two sentences: ticked sources are used, they can untick or tick, and add URLs at the end. Summarize what was found per type, the strongest sources, and the gaps.
 2. Wait for the user. They can edit the file, or tell you their changes in the chat. For chat edits, update the ticks in `sources.md` yourself.
 3. When the user says it is done: `codelabgen sources apply` and report the result (kept, dropped, added). If the user added sources, run the matching hunter for each new one to check it, fill in a real title, type and roles, and re-add it (re-adding merges).
-4. Only when the user explicitly approves: `codelabgen state phase topics --approved`.
-5. In this version, stop here. Topic extraction and curriculum design are not built yet. Tell the user the sources are ready and what comes next.
+4. Only when the user explicitly approves: `codelabgen state phase topics --approved`, then continue with phase `topics`.
+
+## Curriculum
+
+### Phase `topics`: digests and topics
+
+1. `codelabgen sources batches --size 5`: groups of source ids that still need a digest (on a resumed run, only the missing ones).
+2. Run one **topic-extractor** per batch, up to 4 at a time in the background. When one finishes, start the next batch.
+3. `codelabgen sources digests` must print `all digests present`. Give a missing digest one retry. If it fails again, mark the source as dropped in `sources.md`, run `codelabgen sources apply`, and tell the user.
+4. `codelabgen topics merge` and `codelabgen sources index`. Tell the user in one line how many topics were found.
+5. `codelabgen state phase curriculum`.
+
+### Phase `curriculum`: plan the course
+
+1. Run **curriculum-architect**. Pass on any wishes the user stated earlier (scope, depth, things to include or skip).
+2. Run **runtime-planner**.
+3. `codelabgen curriculum validate`, `codelabgen sources index` (it now shows which lessons use which source), `codelabgen curriculum render`.
+4. `codelabgen state phase gate_plan`.
+
+### Phase `gate_plan`: the user reviews the plan
+
+1. Show the user the plan: the path of `.codelabgen/plan.md`, plus a compact summary in the chat (modules with their lessons, one line each; the example storyline; the services). Ask the runtime planner's **questions** from `.codelabgen/research/runtime.md`, numbered, with the suggested defaults. These are usually which LLM provider and model to use. Tell the user which keys they will need.
+2. Handle feedback in rounds:
+   - Structure changes ("merge 2.3 and 2.4", "add a lesson on streaming", "skip deployment"): run **curriculum-architect** with the feedback, then **runtime-planner**, then validate and render again.
+   - Small wording changes: edit `curriculum.yaml` yourself, then validate and render.
+   - Answers to the questions: run **runtime-planner** with the answers. It records them (`codelabgen config external add …`) and adds the variables to `env`. Then validate and render.
+3. Only when the user explicitly approves the plan and every question is answered: `codelabgen state phase scaffold --approved`.
+
+### Phase `scaffold`: prepare the course directory
+
+1. `codelabgen scaffold course`. It writes the module workspaces and lesson directories, `docker-compose.yml`, `.env.example` and `.env`, initializes git, and registers the lessons.
+2. `codelabgen toc`, which writes `run.sh` and the READMEs.
+3. If the course needs secrets: tell the user to fill them in the course `.env` (full path), listing each variable and where to get it (`codelabgen env list`). Wait until `codelabgen env check` prints `ok`.
+4. `codelabgen state phase lessons`, then continue with lesson production.
 
 ## Lesson production
 
@@ -122,6 +154,7 @@ Lesson directory: <absolute path>      Module directory: <absolute path>
 Python package: <package>              uv project: <project>
 Course language: <language>            Technology: <topic> <version>
 Example: <new | extends lesson X>
+Lesson sources (digests in .codelabgen/sources/): <the node's sources>
 <For rework: Review round N; fix the items tagged [<part>] in .codelabgen/lessons/<id>/review.md>
 <For code-fixer: the full JSON printed by codelabgen verify>
 Task: <one line, e.g. "Write the lesson spec">

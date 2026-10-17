@@ -114,6 +114,8 @@ def add(course: Course, rows: list[dict]) -> AddReport:
             existing.roles = sorted(set(existing.roles) | set(source.roles))
             if source.score > existing.score:
                 existing.score, existing.reason = source.score, source.reason
+            if existing.title == existing.url and source.title != source.url:
+                existing.title = source.title  # a user-added URL gets its real title
             for name in ("version", "date", "language"):
                 if getattr(existing, name) is None:
                     setattr(existing, name, getattr(source, name))
@@ -265,3 +267,116 @@ def rows_from_text(text: str) -> list[dict]:
     if text.startswith("{") and "\n" not in text:
         return [json.loads(text)]
     return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+# --- digests --------------------------------------------------------------------------------
+
+USED = ("kept", "user")
+DIGEST_SECTIONS = ("Summary", "Topics covered", "Code examples", "Gaps / dig deeper")
+
+
+def digests_dir(course: Course) -> Path:
+    return course.meta / "sources"
+
+
+def digest_path(course: Course, source_id: str) -> Path:
+    return digests_dir(course) / f"{source_id}.md"
+
+
+def used(course: Course) -> list[Source]:
+    """The sources the course is built from: kept by the review or added by the user."""
+    return [s for s in load(course) if s.status in USED]
+
+
+def read_digest(path: Path) -> tuple[dict, str]:
+    import yaml
+
+    text = path.read_text()
+    if not text.startswith("---\n"):
+        return {}, text
+    _, header, body = text.split("---\n", 2)
+    return yaml.safe_load(header) or {}, body
+
+
+def digest_problems(course: Course, source: Source) -> list[str]:
+    path = digest_path(course, source.id)
+    if not path.is_file():
+        return ["missing"]
+    meta, body = read_digest(path)
+    problems = []
+    if meta.get("id") != source.id:
+        problems.append(f"front matter id is {meta.get('id')!r}")
+    headings = set(re.findall(r"^## (.+?)\s*$", body, re.MULTILINE))
+    problems += [f"no '## {name}' section" for name in DIGEST_SECTIONS if name not in headings]
+    return problems
+
+
+def pending_digests(course: Course) -> list[Source]:
+    return [s for s in used(course) if digest_problems(course, s)]
+
+
+def batches(course: Course, size: int, only_pending: bool = True) -> list[list[str]]:
+    """Source ids in groups of `size` for parallel extractors, in type order, so a group
+    mostly holds sources of one type and few groups are left half full."""
+    chosen = pending_digests(course) if only_pending else used(course)
+    order = {t: i for i, t in enumerate(TYPE_ORDER)}
+    ids = [s.id for s in sorted(chosen, key=lambda s: order.get(s.type, 99))]
+    return [ids[i : i + size] for i in range(0, len(ids), size)]
+
+
+def lesson_usage(course: Course) -> dict[str, list[str]]:
+    """Source id -> lessons whose curriculum node cites it."""
+    from codelabgen import curriculum as cur
+
+    if not (course.meta / "curriculum.yaml").is_file():
+        return {}
+    usage: dict[str, list[str]] = {}
+    try:
+        lessons = cur.lessons(cur.load(course))
+    except cur.CurriculumError:
+        return {}
+    for lesson in lessons:
+        for source_id in lesson.node.sources:
+            usage.setdefault(source_id, []).append(lesson.id)
+    return usage
+
+
+def build_index(course: Course) -> Path:
+    """`.codelabgen/sources/index.md`: digests grouped by role, with lesson usage."""
+    usage = lesson_usage(course)
+    items = used(course)
+    lines = [
+        "# Source digests",
+        "",
+        "One digest per source the course uses, in `.codelabgen/sources/<id>.md`. "
+        "Grouped by role; a source appears under each of its roles.",
+        "",
+    ]
+    for role in ("structure", "code-truth", "concepts", "pitfalls"):
+        group = [s for s in items if role in s.roles]
+        if not group:
+            continue
+        lines += [
+            f"## {role}",
+            "",
+            "| Digest | Type | Score | Lessons | Summary |",
+            "|---|---|---|---|---|",
+        ]
+        for s in sorted(group, key=lambda x: -x.score):
+            path = digest_path(course, s.id)
+            summary = ""
+            if path.is_file():
+                _, body = read_digest(path)
+                match = re.search(
+                    r"^## Summary\s*\n+(.+?)(?:\n\n|\n## |\Z)", body, re.MULTILINE | re.DOTALL
+                )
+                summary = " ".join(match.group(1).split())[:160] if match else ""
+            link = f"[{s.title}]({s.id}.md)" if path.is_file() else f"{s.title} (no digest yet)"
+            lines.append(
+                f"| {link} | {s.type} | {s.score:.2f} | "
+                f"{', '.join(usage.get(s.id, [])) or '—'} | {summary} |"
+            )
+        lines.append("")
+    path = digests_dir(course) / "index.md"
+    atomic_write(path, "\n".join(lines))
+    return path

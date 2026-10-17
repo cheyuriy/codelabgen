@@ -145,7 +145,7 @@ def test_unknown_service(course):
     data = fixture_data()
     data["modules"][0]["children"][0]["services"] = ["mongo"]
     (course.meta / "curriculum.yaml").write_text(yaml.safe_dump(data, allow_unicode=True))
-    with pytest.raises(ScaffoldError, match="unknown services: mongo"):
+    with pytest.raises(CurriculumError, match="unknown service 'mongo'"):
         scaffold_course(course)
 
 

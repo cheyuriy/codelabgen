@@ -15,7 +15,7 @@ The orchestrator's prompt gives you the course directory, the lesson id, the les
 
 1. Read the lesson's curriculum node (objectives first), the spec, the lesson code and `docs/readalong.md`.
 2. Read the notes of earlier lessons in the module, so you build on them instead of repeating them.
-3. Read the `concepts` and `pitfalls` digests in `.codelabgen/sources/` and `.codelabgen/research/deprecations.md` when they exist. Use the official documentation (WebFetch) and the installed package source in the module's `.venv` to check every claim.
+3. Read the digests of the lesson's `sources` (`.codelabgen/sources/<id>.md`), then other `concepts` and `pitfalls` digests from `.codelabgen/sources/index.md` that fit the lesson, and `.codelabgen/research/deprecations.md` when they exist. Use the official documentation (WebFetch) and the installed package source in the module's `.venv` to check every claim.
 4. If `.codelabgen/lessons/<id>/review.md` has `[notes]` items, fix every one of them, editing the existing file.
 5. Register the terms this lesson introduces with `codelabgen glossary add` and link their first use, as the notes-writing skill describes.
 6. Write `<lesson dir>/docs/notes.md`, then run `codelabgen snippets sync <id> --course <course dir>` and `codelabgen check snippets <id> --course <course dir>`.

@@ -20,6 +20,7 @@ from codelabgen import github as gh
 from codelabgen import record as recordings
 from codelabgen import site as sitemod
 from codelabgen import sources as srcmod
+from codelabgen import topics as topicsmod
 from codelabgen.course import Course, CourseNotFound, atomic_write
 from codelabgen.curriculum import CurriculumError
 from codelabgen.doctor import check_tools
@@ -53,6 +54,10 @@ github_app = typer.Typer(
 )
 repo_app = typer.Typer(no_args_is_help=True, help="Clones of the technology's repositories.")
 config_app = typer.Typer(no_args_is_help=True, help="Course settings.")
+topics_app = typer.Typer(no_args_is_help=True, help="Topics extracted from the sources.")
+external_app = typer.Typer(no_args_is_help=True, help="External services the user chose.")
+app.add_typer(topics_app, name="topics")
+config_app.add_typer(external_app, name="external")
 app.add_typer(sources_app, name="sources")
 app.add_typer(github_app, name="github")
 app.add_typer(repo_app, name="repo")
@@ -261,6 +266,26 @@ def curriculum_validate(course: CourseOpt = None):
     curriculum = cur.load(Course.find(course))
     count = len(cur.lessons(curriculum))
     typer.echo(f"ok: {len(curriculum.modules)} modules, {count} lessons")
+
+
+@curriculum_app.command("number")
+def curriculum_number(course: CourseOpt = None):
+    """Assign ids by position and rewrite references (before scaffolding only)."""
+    found = Course.find(course)
+    if StateStore(found).load().lessons:
+        fail("lessons are registered already; renumbering now would break their directories")
+    mapping = cur.number(found)
+    for old, new in mapping.items():
+        typer.echo(f"{old} -> {new}")
+    cur.load(found)
+    typer.echo("ok")
+
+
+@curriculum_app.command("render")
+def curriculum_render(course: CourseOpt = None):
+    """Write .codelabgen/plan.md for the user's review."""
+    found = Course.find(course)
+    typer.echo(cur.render_plan(found).relative_to(found.root))
 
 
 @curriculum_app.command("lessons")
@@ -769,7 +794,7 @@ def sources_apply(course: CourseOpt = None):
 
 # --- config -----------------------------------------------------------------------------
 
-CONFIG_KEYS = {"version", "language", "topic"}
+CONFIG_KEYS = {"version", "language", "topic", "runtime.kind", "runtime.per"}
 
 
 @config_app.command("show")
@@ -780,15 +805,117 @@ def config_show(course: CourseOpt = None):
 
 @config_app.command("set")
 def config_set(key: str, value: str, course: CourseOpt = None):
-    """Set version, language or topic."""
+    """Set version, language, topic, runtime.kind or runtime.per."""
     if key not in CONFIG_KEYS:
         fail(f"only {', '.join(sorted(CONFIG_KEYS))} can be set here")
     found = Course.find(course)
     config = found.load_config()
-    setattr(config, key, value)
-    found.save_config(config)
+    target, _, name = key.rpartition(".")
+    setattr(config.runtime if target == "runtime" else config, name, value)
+    found.save_config(config.model_validate(config.model_dump()))
     StateStore(found).log("config", key=key, value=value)
     typer.echo(f"{key} = {value}")
+
+
+@external_app.command("add")
+def external_add(
+    provider: str,
+    course: CourseOpt = None,
+    model: Annotated[list[str] | None, typer.Option(help="Model or plan, repeatable")] = None,
+    env: Annotated[list[str] | None, typer.Option(help="Variable it needs, repeatable")] = None,
+):
+    """Record the user's choice of an external service (replaces the same provider)."""
+    from codelabgen.models import External
+
+    found = Course.find(course)
+    config = found.load_config()
+    config.external = [e for e in config.external if e.provider != provider]
+    config.external.append(External(provider=provider, models=model or [], env_vars=env or []))
+    found.save_config(config)
+    StateStore(found).log("external", provider=provider, models=",".join(model or []))
+    typer.echo(f"external: {provider}")
+
+
+@external_app.command("clear")
+def external_clear(course: CourseOpt = None):
+    """Forget all recorded external services."""
+    found = Course.find(course)
+    config = found.load_config()
+    config.external = []
+    found.save_config(config)
+    typer.echo("external: cleared")
+
+
+# --- topics -----------------------------------------------------------------------------
+
+
+@topics_app.command("add")
+def topics_add(
+    source: Annotated[str, typer.Option(help="Source id the topics come from")],
+    course: CourseOpt = None,
+    json_text: Annotated[str | None, typer.Option("--json", help="Topic rows as JSON")] = None,
+    file: Annotated[Path | None, typer.Option(help="JSON lines file")] = None,
+):
+    """Set the topics of one source (replaces earlier ones for that source)."""
+    text = file.read_text() if file else (json_text or sys.stdin.read())
+    count = topicsmod.add(Course.find(course), source, srcmod.rows_from_text(text))
+    typer.echo(f"{source}: {count} topics")
+
+
+@topics_app.command("merge")
+def topics_merge(course: CourseOpt = None):
+    """Merge all topics into .codelabgen/topics/summary.md (exact-name merge)."""
+    found = Course.find(course)
+    items, path = topicsmod.merge(found)
+    emit({"topics": len(items), "path": str(path.relative_to(found.root))})
+
+
+# --- digests ----------------------------------------------------------------------------
+
+
+@sources_app.command("digests")
+def sources_digests(course: CourseOpt = None):
+    """Kept sources whose digest is missing or incomplete (JSON lines)."""
+    found = Course.find(course)
+    pending = srcmod.pending_digests(found)
+    for s in pending:
+        typer.echo(
+            json.dumps(
+                {"id": s.id, "type": s.type, "problems": srcmod.digest_problems(found, s)},
+                ensure_ascii=False,
+            )
+        )
+    if not pending:
+        typer.echo("all digests present")
+
+
+@sources_app.command("batches")
+def sources_batches(
+    course: CourseOpt = None,
+    size: Annotated[int, typer.Option(help="Sources per extractor")] = 5,
+    all_sources: Annotated[
+        bool, typer.Option("--all", help="Include sources with digests")
+    ] = False,
+):
+    """Group the sources still needing digests for parallel topic extractors (JSON)."""
+    emit(srcmod.batches(Course.find(course), size, only_pending=not all_sources))
+
+
+@sources_app.command("index")
+def sources_index(
+    course: CourseOpt = None,
+    role: Annotated[str | None, typer.Option(help="Print the digests of one role")] = None,
+):
+    """Rebuild .codelabgen/sources/index.md; with --role, print that role's digest paths."""
+    found = Course.find(course)
+    path = srcmod.build_index(found)
+    if role:
+        for s in srcmod.query(found, ["kept", "user"], role=role):
+            digest = srcmod.digest_path(found, s.id)
+            if digest.is_file():
+                typer.echo(digest.relative_to(found.root))
+        return
+    typer.echo(path.relative_to(found.root))
 
 
 # --- schema -----------------------------------------------------------------------
@@ -836,6 +963,7 @@ def main() -> None:
         gh.GitHubError,
         research.ResearchError,
         srcmod.SourcesError,
+        topicsmod.TopicsError,
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
         sys.exit(2)

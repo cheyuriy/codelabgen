@@ -73,7 +73,7 @@ def scaffold_course(course: Course) -> ScaffoldReport:
 
     used = sorted({s for names in lesson_services(curriculum, course).values() for s in names})
     try:
-        catalog = services.resolve(used)
+        catalog = services.resolve(used, course.meta)
     except services.UnknownService as exc:
         raise ScaffoldError(str(exc)) from exc
     if config.runtime.services != used:

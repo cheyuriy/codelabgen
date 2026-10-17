@@ -15,6 +15,7 @@ The orchestrator's prompt gives you the course directory, the lesson id, the les
 
 1. Read the spec `.codelabgen/lessons/<id>/spec.yaml`, the lesson's curriculum node, and all the lesson code and tests.
 2. For an extending lesson, read the previous lesson's code to describe the delta accurately.
+   For experiments, look at the `pitfalls` digests among the lesson's `sources` (`.codelabgen/sources/<id>.md`).
 3. Find the latest passing run in `.codelabgen/runs/<id>/` (its `result.json` has `"passed": true`) and take the real output from its `live-run.log`.
 4. If `.codelabgen/lessons/<id>/review.md` has `[readalong]` items, fix every one of them. Edit the existing file instead of rewriting it from scratch.
 5. Write `<lesson dir>/docs/readalong.md`, then run `codelabgen snippets sync <id> --course <course dir>` and `codelabgen check snippets <id> --course <course dir>`.

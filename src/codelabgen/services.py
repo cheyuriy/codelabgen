@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -70,11 +71,43 @@ class UnknownService(Exception):
     pass
 
 
-def resolve(names: list[str]) -> list[Service]:
-    unknown = [n for n in names if n not in CATALOG]
+def custom_path(course_meta: Path) -> Path:
+    return course_meta / "services.yaml"
+
+
+def load_custom(course_meta: Path) -> dict[str, Service]:
+    """Course-specific services from `.codelabgen/services.yaml`.
+
+    Format: `<name>: {definition: <compose service>, env: [<EnvVar>, …]}`. The runtime
+    planner writes it for services the built-in catalog doesn't have (a vector store,
+    a message broker, …). A custom entry overrides a built-in one of the same name.
+    """
+    path = custom_path(course_meta)
+    if not path.is_file():
+        return {}
+    data = yaml.safe_load(path.read_text()) or {}
+    result = {}
+    for name, entry in data.items():
+        if not isinstance(entry, dict) or "image" not in (entry.get("definition") or {}):
+            raise UnknownService(f"{path}: service {name!r} needs a definition with an image")
+        env = [EnvVar.model_validate(v) for v in entry.get("env", [])]
+        result[name] = Service(name, entry["definition"], env)
+    return result
+
+
+def available(course_meta: Path | None = None) -> dict[str, Service]:
+    return {**CATALOG, **(load_custom(course_meta) if course_meta else {})}
+
+
+def resolve(names: list[str], course_meta: Path | None = None) -> list[Service]:
+    known = available(course_meta)
+    unknown = [n for n in names if n not in known]
     if unknown:
-        raise UnknownService(f"unknown services: {', '.join(unknown)}; known: {', '.join(CATALOG)}")
-    return [CATALOG[n] for n in dict.fromkeys(names)]
+        raise UnknownService(
+            f"unknown services: {', '.join(unknown)}; known: {', '.join(known)}. "
+            "Define others in .codelabgen/services.yaml"
+        )
+    return [known[n] for n in dict.fromkeys(names)]
 
 
 def compose_yaml(services: list[Service], project: str) -> str:

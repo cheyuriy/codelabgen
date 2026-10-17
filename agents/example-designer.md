@@ -15,7 +15,7 @@ The orchestrator's prompt gives you the course directory, the lesson id, the les
 1. Read `.codelabgen/config.yaml` and the lesson's node in `.codelabgen/curriculum.yaml`: title, summary, objectives, prerequisites, the `example` entry and its storyline.
 2. If the example extends an earlier lesson, read that lesson's spec and code: your spec describes a delta on top of it.
 3. Read the specs of the earlier lessons in the same module, so names and domains stay consistent.
-4. Read `.codelabgen/research/deprecations.md` and the `code-truth` digests in `.codelabgen/sources/` when they exist.
+4. Read `.codelabgen/research/deprecations.md` and the digests of the lesson's `sources` (`.codelabgen/sources/<id>.md`), the `code-truth` ones first. `.codelabgen/sources/index.md` lists the others by role.
 5. Confirm every API you plan to use in the installed package source of the module's `.venv`. Sync the workspace first if needed: `env -u VIRTUAL_ENV uv sync --all-packages` in the module directory.
 6. If you are redoing the spec after a review, read `.codelabgen/lessons/<id>/review.md` and address every item tagged for the spec or code.
 7. Write `.codelabgen/lessons/<id>/spec.yaml` and check that it parses: `python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" <path>`.
