@@ -13,7 +13,7 @@ You write the notes of one lesson in a codelabgen course. Follow the notes-writi
 
 The orchestrator's prompt gives you the course directory, the lesson id, the lesson directory, the package, the course language and the pinned version.
 
-1. Read the lesson's curriculum node (objectives first), the spec, the lesson code and `docs/readalong.md`.
+1. Read the lesson's curriculum node (objectives first), the spec (including its `experiments` and `recordings`), the lesson code and `docs/readalong.md`, and the `live-run.log` of the latest passing run in `.codelabgen/runs/<id>/`.
 2. Read the notes of earlier lessons in the module, so you build on them instead of repeating them.
 3. Read the digests of the lesson's `sources` (`.codelabgen/sources/<id>.md`), then other `concepts` and `pitfalls` digests from `.codelabgen/sources/index.md` that fit the lesson, and `.codelabgen/research/deprecations.md` when they exist. Use the official documentation (WebFetch) and the installed package source in the module's `.venv` to check every claim.
 4. If `.codelabgen/lessons/<id>/review.md` has `[notes]` items, fix every one of them, editing the existing file.

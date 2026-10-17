@@ -6,7 +6,7 @@ user-invocable: false
 
 # Designing a lesson's example
 
-Every lesson teaches one idea through one runnable example. The example is the lesson's backbone: the read-along explains its code line by line, and the notes explain the concept by pointing at it. Your output is the **lesson spec**. The code-author implements it, so it must be concrete enough to build without guessing.
+Every lesson teaches one idea through one runnable example. The example is the lesson's backbone: the read-along explains its code next to it, and the notes explain the concept by pointing at it. Your output is the **lesson spec**. The code-author implements it, so it must be concrete enough to build without guessing.
 
 ## The core rule: the example is exactly as complex as the idea needs
 
@@ -49,7 +49,7 @@ The spec lists the tests the code-author must write. Tests run in `codelabgen ve
 `run_cmd` runs in the lesson directory: for Python through `uv run`, usually `python -m <package>`; for Node usually `npx tsx src/main.ts`; for Go usually `go run .`. It must:
 
 - finish on its own in well under `run_timeout_s` (default 300 s; aim for seconds)
-- print output that shows the concept working; the read-along quotes it as expected output
+- print output that shows the concept working; the notes quote it as the real output
 - use the real services the lesson declares (`services`, for example `postgres`), with connection settings from environment variables
 
 ## Experiments
@@ -64,7 +64,7 @@ For each recording, give a `name` (kebab-case, used for the file names), the `cm
 
 ## Regions
 
-Name the code regions the read-along will show: snake_case, one per meaningful unit (the state class, the routing function, the graph wiring). The code-author wraps each in `# region <name>` / `# endregion` markers.
+Name the code regions the notes will show as snippets: snake_case, one per meaningful unit (the state class, the routing function, the graph wiring). The code-author wraps each in `# region <name>` / `# endregion` markers.
 
 ## The spec file
 

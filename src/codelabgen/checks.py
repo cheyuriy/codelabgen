@@ -14,6 +14,7 @@ from codelabgen import diagrams, runtimes, snippets
 from codelabgen.course import Course
 from codelabgen.markdown import IMAGE, LINK, code_blocks, heading_slugs, prose_lines
 
+LINE_ANCHOR = re.compile(r"L(\d+)(?:-L?(\d+))?")
 MERMAID_TYPES = (
     "flowchart",
     "graph",
@@ -83,6 +84,17 @@ def check_links(course: Course) -> list[str]:
                     resolved = page if not path_part else (page.parent / path_part).resolve()
                     if path_part and not resolved.exists():
                         problems.append(f"{where(course, page, number)}: broken link {target}")
+                        continue
+                    line_anchor = LINE_ANCHOR.fullmatch(anchor) if anchor else None
+                    if line_anchor and resolved.is_file() and resolved.suffix != ".md":
+                        length = len(resolved.read_text(errors="replace").splitlines())
+                        first = int(line_anchor.group(1))
+                        last = int(line_anchor.group(2) or first)
+                        if not 1 <= first <= last <= length:
+                            problems.append(
+                                f"{where(course, page, number)}: {target} points past the "
+                                f"end of {resolved.name} ({length} lines)"
+                            )
                         continue
                     if anchor and resolved.suffix == ".md":
                         if resolved not in slug_cache:

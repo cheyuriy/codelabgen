@@ -1,104 +1,64 @@
 ---
 name: readalong-writing
-description: How to write a codelabgen lesson's read-along (`docs/readalong.md`) — a guided walk through the lesson code with snippets synced from code regions, the real output of the run, and "what to try" experiments, rendering well on GitHub and the MkDocs site. Used by the readalong-writer agent.
+description: How to write a codelabgen lesson's read-along (`docs/readalong.md`) — a plain explanation of the lesson code, meant to be read side by side with the code in the editor, referring to files, functions, classes and lines. Used by the readalong-writer agent.
 user-invocable: false
 ---
 
 # Writing the read-along
 
-The read-along is for a learner with the lesson code open. It walks through the code in the order that makes the idea click, explains what each part does and why, shows the real output, and ends with experiments. The theory goes in the notes (`docs/notes.md`). The read-along stays close to the code and links to the notes for the concept.
+The learner opens the lesson code and the read-along side by side, for example in VS Code. The read-along explains the code: what each part is for, why it is written this way, and what the library does behind each call. That's all. No copies of the code, no theory (that's in the notes), no exercises.
 
-Write it in the **course language** (`language` in `.codelabgen/config.yaml`). Code identifiers, file names and commands stay as they are.
+Keep it simple and short. A paragraph or a few bullets per function is usually enough.
+
+Write in the **course language** (`language` in `.codelabgen/config.yaml`). Identifiers, file names and commands stay as they are.
 
 ## Structure
 
 ```markdown
 # <id> <lesson title> — разбор кода          ← "code walkthrough" in the course language
 
-One or two sentences: what the example does and which idea it shows.
-Link to the notes: [Конспект](notes.md).
-
-## Как запустить                              ← how to run
-From the course root: `./run.sh <id>` (it loads .env, starts services, syncs and runs),
-and `./run.sh test <id>` for the tests. Then the manual way, for readers who want to
-see the steps: `docker compose up -d --wait <service>` if needed, one-time
-install in the module (or lesson) directory, then the run command in the lesson
-directory. Say which directory each command runs in.
+One or two sentences: what the program does. Run it with `./run.sh <id>` from the course root.
+The concept itself: [конспект](notes.md).
 
 ## Что изменилось с урока X                   ← only when the example extends an earlier lesson
-The delta from the spec, as a short list with links to the regions below.
+A short list of the changes, each with a link to the place in the code.
 
-## <one section per step of the walkthrough>
-A snippet, then the explanation.
+## [state.py](../src/l1_2_routing/state.py)   ← one section per file, in reading order
+What the file is for, in a sentence.
 
-## Что получится                              ← the real output
-## Что попробовать                            ← experiments
+- [`TicketState`](../src/l1_2_routing/state.py#L8) — …
+- [`route`](../src/l1_2_routing/state.py#L12): the `Annotated[list[str], operator.add]` annotation in line 12 makes LangGraph …
+
+## [graph.py](../src/l1_2_routing/graph.py)
+…
 ```
 
 Section titles are examples in Russian; use the course language.
 
-## Order of the walkthrough
+## Order
 
-Follow the reader's understanding, not the file order. Usually: the data (state, models) → the pieces that act on it (nodes, functions) → how they are wired together → the entry point that runs it. One section per region, with headings that say what the reader learns ("Маршрутизация: функция route"), not just the identifier.
+Order the files so the reader understands each one before the next needs it. Usually: the data (state, models), then the pieces that act on it (nodes, handlers, functions), then how they are wired together, then the entry point that runs everything. Within a file, follow the code from top to bottom, so the reader can scroll along.
 
-## Snippets: never paste code by hand
+## Referring to code
 
-Show code only through snippet markers. `codelabgen snippets sync` fills them from the code's regions:
+- **By name first:** functions, classes, methods, variables, in backticks: `build_graph`, `TicketState.route`.
+- **Link each name to its place,** relative to the read-along, with a line anchor: `[`build_graph`](../src/l1_2_routing/graph.py#L74)`, or a range: `…graph.py#L74-L94`. In VS Code these links open the file at that line, on GitHub they highlight it, and the reader always knows where to look.
+- **Line numbers for single lines** that matter: "line 87 adds the conditional edge". Take the numbers from the final code, and check them.
+- Paths go from `docs/readalong.md` to the code: `../src/…` for Python and Node, `../<file>.go` for Go.
+- Don't copy code into the read-along. A short inline fragment in backticks is fine when you talk about it: "the call `builder.add_conditional_edges("classify", route_ticket)`".
 
-```markdown
-<!-- snippet: src/l1_2_routing/graph.py#route -->
-<!-- /snippet -->
-```
+## What to explain
 
-- Paths are relative to the lesson directory. `#name` is a region from the spec's `regions`; without `#name` the whole file is shown (fine for short files).
-- Write the markers with nothing between them, then run `codelabgen snippets sync <id> --course <dir>`, which fills in the code.
-- Refer to code by identifiers and quoted fragments ("the call `graph.add_conditional_edges(...)`"), **never by line numbers**, which change.
+- **What the code comments don't already say.** The code has its own comments, so don't repeat them. Add what a learner would ask next to the code: why this approach, what the library does here, what happens at run time, what would break if you changed it.
+- **The technology, not the syntax.** "`add_node` registers the function under a name; the graph calls it with the current state and merges what it returns" is the point. "Here we call add_node" is not.
+- **The non-obvious lines,** one by one when needed: a default that matters, an order that matters, a value that is merged rather than replaced.
+- **For the concept itself,** link to the notes (`подробнее — в [конспекте](notes.md#…)`) instead of explaining theory here.
 
-## Explaining the code
+## Syntax
 
-- After each snippet, explain what the reader needs: what this part is for, what the library does with it, the key lines, and anything surprising. Go down to individual lines where they carry the idea.
-- Don't repeat what the code says; explain what it means. "Here we add a node" is useless. "The node's return value is merged into the state, so returning only `category` leaves the other fields untouched" is the point.
-- Link concepts to the notes rather than re-explaining theory: `подробнее — в [конспекте](notes.md#reducers)`.
-- Mermaid diagrams are welcome when they show the code's structure, for example the graph the code builds (see the diagramming skill).
-
-## Real output
-
-Quote the live run's real output from the latest passing verify run: `.codelabgen/runs/<id>/<latest>/live-run.log` (the part after the command header). Copy it exactly into a `text` code block, then explain what to notice in it. Never invent or "tidy" output. If the output depends on an LLM or on time, say that a run may differ.
-
-## Recordings
-
-If the spec lists `recordings`, the verify run saved them as `<lesson dir>/docs/generated/<name>.gif` (with a `.cast` next to it). Show each one where it helps, usually next to the real output:
-
-```markdown
-![Запуск: маршрутизация трёх обращений](generated/route-tickets.gif)
-```
-
-The path is relative to the read-along, so write it as `generated/<name>.gif`. Only link GIFs that exist. If verify logged "skipped" for `record`, show the text output alone.
-
-## Experiments
-
-Turn the spec's `experiments` into a "what to try" section. For each one: what to change (a concrete edit), what you will observe, and why. Put the explanation in a collapsible block, so the reader can guess first:
-
-```markdown
-1. В `route` верните `"unknown"` вместо `"general"` и запустите снова.
-
-   <details><summary>Что произойдёт и почему</summary>
-
-   …
-
-   </details>
-```
-
-Each experiment starts from the lesson's original code. When an experiment changes the code, end its explanation with a reminder to undo the change (for example `git checkout -- src/` or "верните код как было") before the next one.
-
-**Verify what you predict.** Run each experiment in a scratch copy of the lesson directory (outside the course) and describe what really happens, not what the spec expected. If the outcome differs from the spec's `experiments` entry, correct that entry in `.codelabgen/lessons/<id>/spec.yaml` as well, so the spec stays the source of truth for later lessons.
-
-## Syntax that works on GitHub and the site
-
-Only these: plain Markdown, fenced code, Mermaid, `$…$` and `$$…$$` math, GitHub alerts (`> [!NOTE]`, `> [!TIP]`, `> [!WARNING]`), `<details>`, and relative links. **Not** `!!!` admonitions, content tabs, code annotations or `--8<--` includes.
+Plain Markdown: headings, short paragraphs, lists, inline code, relative links. Nothing else is needed. In particular, no snippet markers, no code blocks with lesson code, no `<details>`, no diagrams.
 
 ## Before you finish
 
-1. `codelabgen snippets sync <id> --course <dir>`
-2. `codelabgen check snippets <id> --course <dir>` must print `ok`.
-3. `codelabgen check links --course <dir>`, `check render` and `check math` report nothing for this lesson's files.
+1. Every link points to an existing file, and every `#L…` anchor to an existing line: `codelabgen check links --course <dir>` reports nothing for this lesson.
+2. Open each linked line and make sure it really shows what the text says it shows.

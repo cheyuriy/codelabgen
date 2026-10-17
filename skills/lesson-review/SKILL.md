@@ -24,7 +24,7 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 **Technical accuracy** (most important)
 - Every statement about the technology is true for the pinned version. Spot-check claims against the installed sources (where they are: the runtime's reference in `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/`) and the official docs.
 - No deprecated or removed APIs, in code or text.
-- The output quoted in the read-along matches `live-run.log`.
+- The output quoted in the notes matches `live-run.log`.
 
 **Objectives**
 - Each objective in the curriculum node is actually taught and shown in the example.
@@ -37,12 +37,13 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 - Tests check the behaviour the lesson is about, and run offline.
 
 **Read-along**
-- Walks the code in an order that builds understanding. Every region shown is explained.
-- Code appears only through snippet markers. `codelabgen check snippets <id>` prints `ok`.
-- Run instructions are complete and correct. The experiments are concrete and their explanations are right.
+- Explains the code file by file in a sensible order, without repeating the code comments or copying code.
+- Every function or class it names exists, and every `#L…` link points at the line it describes (open them).
+- Short and plain: it explains, it doesn't teach theory or set exercises.
 
 **Notes**
 - Explain the concept properly, in a book-like way, and tie it to the code.
+- The real output matches the latest run; the experiments are concrete and their explanations are right (check them by running).
 - Diagrams are correct and readable; generated ones match the code.
 - Self-check questions have correct answers. Further-reading links are real and relevant.
 

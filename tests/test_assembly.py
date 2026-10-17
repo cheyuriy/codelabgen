@@ -181,3 +181,21 @@ def test_content_size_fits_output():
     long_line = '[0.1, "o", "' + "x" * 300 + '"]'
     many = "\n".join('[0.1, "o", "line\\r\\n"]' for _ in range(100))
     assert content_size('{"version": 3}\n' + long_line + "\n" + many) == (100, 30)
+
+
+def test_check_links_line_anchors(course):
+    toc.generate(course)
+    code = lesson_dir(course) / "src" / "l1_1_hello_graph" / "graph.py"
+    code.write_text("a = 1\nb = 2\nc = 3\n")
+    write_doc(
+        course,
+        "# Разбор\n\n[a](../src/l1_1_hello_graph/graph.py#L1) "
+        "[range](../src/l1_1_hello_graph/graph.py#L2-L3) "
+        "[past](../src/l1_1_hello_graph/graph.py#L9) "
+        "[bad range](../src/l1_1_hello_graph/graph.py#L2-L7)\n",
+        name="readalong.md",
+    )
+    problems = checks.check_links(course)
+    assert len(problems) == 2 and all(
+        "points past the end of graph.py (3 lines)" in p for p in problems
+    )

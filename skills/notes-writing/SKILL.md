@@ -17,12 +17,14 @@ Adapt to the topic. A typical chapter:
 1. **The problem.** What situation calls for this concept? What goes wrong without it? Start from something the learner already knows.
 2. **The concept.** Define it precisely. Introduce terms one at a time, each defined on first use. Give the mental model that makes the rest follow.
 3. **How it works.** The mechanism, with a diagram where structure or flow matters.
-4. **In our example.** Map the concept onto the lesson code: which region does what, with snippets (same markers as the read-along) for the key parts, and links to the read-along for the walkthrough.
-5. **Details and edge cases.** Behaviour that surprises people, limits, interactions with what earlier lessons covered.
-6. **Common mistakes.** As callouts, ideally from real pitfalls (the `pitfalls` source digests, issue trackers, the spec's experiments).
-7. **Summary.** 3–6 bullets the learner should remember.
-8. **Self-check.** 3–5 questions with answers hidden in `<details>`.
-9. **Further reading.** Sources actually used, with links.
+4. **In our example.** Map the concept onto the lesson code: which part does what, with snippets of the key parts, and a link to the read-along for the code walkthrough.
+5. **Run it.** The real output of the program and what to notice in it (see "Real output").
+6. **Details and edge cases.** Behaviour that surprises people, limits, interactions with what earlier lessons covered.
+7. **Common mistakes.** As callouts, ideally from real pitfalls (the `pitfalls` source digests, issue trackers, the spec's experiments).
+8. **Experiments.** What to try with the code (see "Experiments").
+9. **Summary.** 3–6 bullets the learner should remember.
+10. **Self-check.** 3–5 questions with answers hidden in `<details>`.
+11. **Further reading.** Sources actually used, with links.
 
 ## Accuracy
 
@@ -40,6 +42,29 @@ Adapt to the topic. A typical chapter:
   ```
 - Link to the walkthrough with `[разбор кода](readalong.md#…)` and to files with relative links such as `[graph.py](../src/l1_2_routing/graph.py)`.
 - Refer to code by identifiers, never by line numbers.
+
+## Real output
+
+Quote the live run's real output from the latest passing verify run: `.codelabgen/runs/<id>/<latest>/live-run.log` (the part after the command header). Copy it exactly into a `text` code block, then say what to notice in it. Never invent or "tidy" output. If the output depends on an LLM or on time, say that a run may differ.
+
+If the spec lists `recordings`, the verify run saved them as `<lesson dir>/docs/generated/<name>.gif`. Show each one next to the output: `![Запуск: маршрутизация трёх обращений](generated/route-tickets.gif)`. Only link GIFs that exist. If verify logged "skipped" for `record`, show the text output alone.
+
+## Experiments
+
+Turn the spec's `experiments` into a "what to try" section. For each one: what to change (a concrete edit), what you will observe, and why. Put the explanation in a collapsible block, so the reader can guess first:
+
+```markdown
+1. В `route_ticket` верните `"unknown"` вместо имени очереди и запустите снова.
+
+   <details><summary>Что произойдёт и почему</summary>
+
+   …
+
+   </details>
+```
+
+- Each experiment starts from the lesson's original code. When an experiment changes the code, end its explanation with a reminder to undo the change (`git checkout -- .` in the lesson directory, or "верните код как было").
+- **Verify what you predict.** Run each experiment in a scratch copy of the lesson directory (outside the course) and describe what really happens, not what the spec expected. If the outcome differs from the spec's `experiments` entry, correct that entry in `.codelabgen/lessons/<id>/spec.yaml` too, so the spec stays the source of truth for later lessons.
 
 ## Glossary terms
 

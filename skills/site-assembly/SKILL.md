@@ -28,7 +28,8 @@ Labels in these files follow the course language. To change their wording, chang
 
 | Feature | Written as | GitHub | Site |
 |---|---|---|---|
-| Code from the lesson | `<!-- snippet: path#region -->` markers, filled by `codelabgen snippets sync` | Code block | Code block with highlighting and a copy button |
+| Code shown in the notes | `<!-- snippet: path#region -->` markers, filled by `codelabgen snippets sync` | Code block | Code block with highlighting and a copy button |
+| Links into the code (read-along) | `[name](../src/…/file.py#L12)`, `#L12-L20` for a range | Opens the file, highlights the line | Opens the source file |
 | Callouts | `> [!NOTE]`, `> [!TIP]`, `> [!WARNING]`, `> [!IMPORTANT]` | Native alerts | Admonitions (mkdocs-callouts) |
 | Mermaid | ` ```mermaid ` | Native | Native (Material) |
 | Math | `$…$`, `$$…$$` | Native | MathJax (arithmatex) |

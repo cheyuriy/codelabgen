@@ -15,19 +15,11 @@ FIXTURE = Path(__file__).parent / "fixtures" / "langgraph-curriculum.yaml"
 
 READALONG = """# Разбор
 
-<!-- snippet: src/l1_1_hello_graph/graph.py#a -->
-<!-- /snippet -->
+## [graph.py](../src/l1_1_hello_graph/graph.py)
 
-<!-- snippet: src/l1_1_hello_graph/graph.py#b -->
-<!-- /snippet -->
-
-```text
-{'total': 5}
-```
-
-1. one <details><summary>?</summary>x</details>
-2. two <details><summary>?</summary>x</details>
-3. three <details><summary>?</summary>x</details>
+- [`f`](../src/l1_1_hello_graph/graph.py#L5) returns one.
+- [`g`](../src/l1_1_hello_graph/graph.py#L9-L10) returns two.
+- Line [4](../src/l1_1_hello_graph/graph.py#L4) is a comment.
 """
 
 NOTES = """# Notes
@@ -40,6 +32,18 @@ NOTES = """# Notes
 flowchart LR
   A --> B
 ```
+
+## Run it
+
+```text
+{'total': 5}
+```
+
+## Experiments
+
+1. one <details><summary>?</summary>x</details>
+2. two <details><summary>?</summary>x</details>
+3. three <details><summary>?</summary>x</details>
 
 ## Self-check
 

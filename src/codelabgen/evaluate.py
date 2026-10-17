@@ -5,7 +5,7 @@ Automatic dimensions (0–100 each, weighted):
   completion    20%  lessons done; blocked lessons count against it
   verification  25%  each lesson's latest verify run passed (or a fresh run, --reverify)
   consistency   15%  `check all` problems; the strict site build (--site)
-  content       25%  per-lesson structure: snippets, real output, experiments,
+  content       25%  per-lesson structure: code links in the read-along, real output, experiments,
                      diagrams, self-check, further reading, tests, comment density
   process       15%  review rounds and fix attempts per lesson
 
@@ -64,9 +64,9 @@ def lesson_content(course: Course, lesson) -> LessonScore:
     notes = notes_path.read_text() if notes_path.is_file() else ""
     result = LessonScore(lesson.id)
 
-    snippets = len(re.findall(r"<!--\s*snippet:", readalong))
-    output_blocks = sum(1 for _ in code_blocks(readalong, "text"))
-    experiments = readalong.count("<details")
+    code_refs = len(re.findall(r"\]\([^)]*#L\d+", readalong))
+    output_blocks = sum(1 for _ in code_blocks(notes, "text"))
+    experiments = notes.count("<details")
     headings = sum(1 for _, line in prose_lines(notes) if line.startswith("## "))
     diagrams = (
         sum(1 for _ in code_blocks(notes, "mermaid"))
@@ -99,7 +99,7 @@ def lesson_content(course: Course, lesson) -> LessonScore:
     result.metrics = {
         "readalong_lines": len(readalong.splitlines()),
         "notes_lines": len(notes.splitlines()),
-        "snippets": snippets,
+        "code_refs": code_refs,
         "experiments": experiments,
         "diagrams": diagrams,
         "external_links": len(external),
@@ -110,9 +110,9 @@ def lesson_content(course: Course, lesson) -> LessonScore:
     result.criteria = {
         "readalong exists": bool(readalong),
         "notes exist": bool(notes),
-        "readalong shows code through 2+ snippets": snippets >= 2,
-        "readalong quotes real output": output_blocks >= 1,
-        "3+ experiments with answers": experiments >= 3,
+        "readalong links 3+ places in the code": code_refs >= 3,
+        "notes quote real output": output_blocks >= 1,
+        "3+ experiments and self-check answers": experiments >= 4,
         "notes have 4+ sections": headings >= 4,
         "a diagram": diagrams >= 1,
         "self-check questions": "<details" in notes,
