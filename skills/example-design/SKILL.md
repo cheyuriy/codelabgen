@@ -31,7 +31,7 @@ The curriculum says for each lesson whether its example is `new` or `extend`s an
 Your spec names concrete APIs, so check that they exist in the **pinned version**:
 
 1. Read `.codelabgen/research/deprecations.md` and the `code-truth` source digests, if present.
-2. Read the installed package source. After `codelabgen scaffold course`, run `env -u VIRTUAL_ENV uv sync --all-packages` once in the module directory. The library's code is then under `<module>/.venv/lib/python3.*/site-packages/<package>/`. Grep it for the classes and functions you plan to use, and check their signatures.
+2. Read the installed library source. The code-authoring skill's runtime reference (`${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/<runtime>.md`, runtime from `.codelabgen/config.yaml`) says how to install the dependency and where its sources are. Grep them for the classes and functions you plan to use and check the signatures.
 3. Use the official docs (WebFetch) for intended usage. When the docs and the installed source disagree, the installed source wins.
 
 Never put an API into the spec that you have not seen in the pinned version.
@@ -46,7 +46,7 @@ The spec lists the tests the code-author must write. Tests run in `codelabgen ve
 
 ## The live run (`run_cmd`)
 
-`run_cmd` runs in the lesson directory through `uv run`, usually `python -m <package>`. It must:
+`run_cmd` runs in the lesson directory: for Python through `uv run`, usually `python -m <package>`; for Node usually `npx tsx src/main.ts`; for Go usually `go run .`. It must:
 
 - finish on its own in well under `run_timeout_s` (default 300 s; aim for seconds)
 - print output that shows the concept working; the read-along quotes it as expected output
@@ -60,7 +60,7 @@ List 3–5 "what to try" experiments. Each one is a small change with an observa
 
 A terminal recording helps when the output **unfolds over time** or the terminal is the interface: streaming tokens, progress, an interactive CLI, a long-running process with log lines. A short, static output doesn't need one: the read-along quotes it as text.
 
-For each recording, give a `name` (kebab-case, used for the file names), the `cmd` as typed after `uv run` (for example `python -m l1_2_routing --stream`), `max_seconds` (keep it under 30), and, for interactive programs, an `input_script` that is piped to the program's stdin. Recordings run after the tests pass, with the lesson's environment.
+For each recording, give a `name` (kebab-case, used for the file names), the `cmd` as for `run_cmd` (for example `python -m l1_2_routing --stream` or `go run . --stream`), `max_seconds` (keep it under 30), and, for interactive programs, an `input_script` that is piped to the program's stdin. Recordings run after the tests pass, with the lesson's environment.
 
 ## Regions
 
@@ -78,7 +78,7 @@ scenario: >-                                  # English, for the agents
   a conditional edge routes it to the billing, tech or general queue node,
   and each queue node appends a reply. The run prints the route of three
   sample tickets.
-files:
+files:                    # relative to the lesson dir; layout per runtime (see code-authoring)
   - src/l1_2_routing/state.py
   - src/l1_2_routing/graph.py
   - src/l1_2_routing/__main__.py

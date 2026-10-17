@@ -28,7 +28,7 @@ Default to Mermaid. Use D2 or Graphviz only when `codelabgen doctor` shows the t
 
 ## Generate from the code when you can
 
-Libraries that build graphs can often draw them. LangGraph's compiled graph prints Mermaid:
+Libraries that build graphs can often draw them. For example, LangGraph's compiled graph prints Mermaid:
 
 ```bash
 cd <lesson dir>

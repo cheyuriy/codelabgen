@@ -187,7 +187,7 @@ Workers are this plugin's agents (`codelabgen:<name>`). Give each one everything
 Course directory: <absolute path>
 Lesson: <id> "<title>"
 Lesson directory: <absolute path>      Module directory: <absolute path>
-Python package: <package>              uv project: <project>
+Runtime: <python-uv | node | go>       Package / project: <package> / <project>
 Course language: <language>            Technology: <topic> <version>
 Example: <new | extends lesson X>
 Lesson sources (digests in .codelabgen/sources/): <the node's sources>
@@ -201,7 +201,7 @@ Wait for the status JSON at the end of the worker's reply. If it is missing or m
 
 ## Keeping the user informed
 
-After each step, send one short line: what finished, anything notable. When the work stops (all done, blocked or waiting for the user), summarize with `codelabgen state show`. At the end of a course, `codelabgen report` gives the generation summary (timings, verify runs, review rounds, unfinished tasks).
+After each step, send one short line: what finished, anything notable. When the work stops (all done, blocked or waiting for the user), summarize with `codelabgen state show`. At the end of a course, `codelabgen report` gives the generation summary (timings, verify runs, review rounds, unfinished tasks), and `codelabgen eval` scores the course against the rubric. Show the user the overall score, the dimensions and anything missing, and point them to `.codelabgen/eval-human.md` for their own review of two sampled lessons.
 
 ## Budgets
 

@@ -26,7 +26,7 @@ Adapt to the topic. A typical chapter:
 
 ## Accuracy
 
-- Every claim about the technology must hold for the **pinned version**. Check against the official docs (WebFetch) and the installed package source in `<module dir>/.venv/lib/python3.*/site-packages/`. Use the `concepts` and `pitfalls` source digests in `.codelabgen/sources/` when they exist.
+- Every claim about the technology must hold for the **pinned version**. Check against the official docs (WebFetch) and the installed sources (where they are: the runtime's reference in `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/`). Use the `concepts` and `pitfalls` source digests in `.codelabgen/sources/` when they exist.
 - Read `.codelabgen/research/deprecations.md` if it exists, and never present a deprecated API as current.
 - When unsure, say less or verify, rather than guess.
 - Write in your own words. Never copy text from sources. Short quotes are fine when attributed.

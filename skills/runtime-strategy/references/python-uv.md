@@ -20,7 +20,7 @@ What `codelabgen scaffold` creates, and what lesson code can rely on.
 
 ## Consequences for planning
 
-- **One version per module.** Lessons in a module resolve together, so they share the pinned technology version and every common dependency. A lesson that needs a different major version must go in its own module, or the course uses `runtime.per: lesson`.
+- **One version per module.** Lessons in a module resolve together, so they share the pinned technology version and every common dependency. A lesson that needs a different major version must go in its own module.
 - **Python version:** `requires-python = ">=3.12"`. If the technology needs an older Python, report it.
 - **Optional packages** (integrations, drivers) are added per lesson by the code author. Plan lessons so that each module's dependency set stays reasonable.
 - **Offline tests:** every lesson's tests run without network, keys or services. For LLM-based examples this means fake models in the tests, such as `langchain_core.language_models.fake_chat_models.GenericFakeChatModel` or a stub class, while the live run uses the real model chosen by the user.

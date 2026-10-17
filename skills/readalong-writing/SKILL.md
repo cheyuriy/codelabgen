@@ -22,7 +22,7 @@ Link to the notes: [Конспект](notes.md).
 From the course root: `./run.sh <id>` (it loads .env, starts services, syncs and runs),
 and `./run.sh test <id>` for the tests. Then the manual way, for readers who want to
 see the steps: `docker compose up -d --wait <service>` if needed, one-time
-`uv sync --all-packages` in the module directory, then `uv run …` in the lesson
+install in the module (or lesson) directory, then the run command in the lesson
 directory. Say which directory each command runs in.
 
 ## Что изменилось с урока X                   ← only when the example extends an earlier lesson

@@ -10,16 +10,16 @@ Every lesson must install, run and pass its tests on the user's machine with one
 
 ## 1. Runtime
 
-| Ecosystem | Supported | Reference |
+| Ecosystem | `runtime.kind` | Reference |
 |---|---|---|
-| Python | yes: `python-uv` | `references/python-uv.md` |
-| Anything else | not yet | Report `needs-user`: codelabgen can only scaffold and verify Python courses so far |
+| Python | `python-uv` | `references/python-uv.md` |
+| Node / TypeScript (JavaScript libraries too) | `node` | `references/node.md` |
+| Go | `go` | `references/go.md` |
+| Anything else | not supported | Report `needs-user`: codelabgen can scaffold and verify only these three |
 
-Set it: `codelabgen config set runtime.kind python-uv --course <dir>`.
+Set it: `codelabgen config set runtime.kind <kind> --course <dir>`. The runtime must be on the user's machine: check `codelabgen doctor` (`uv`, `node`/`npm`, or `go`).
 
-Layout, `runtime.per`:
-- `module` (default): one uv workspace per module. Lessons share one lockfile, so they share dependency versions. This is right when the course pins one version of the technology.
-- `lesson`: only when lessons in one module truly need conflicting versions (rare; for example a lesson comparing two major versions).
+Layout: one workspace per module, for every runtime. Lessons of a module share dependency versions, which is right when the course pins one version of the technology. A lesson that truly needs a conflicting version (rare, for example comparing two major versions) goes into a module of its own. Leave `runtime.per` at `module`: per-lesson projects are not implemented.
 
 ## 2. Services (Docker Compose)
 

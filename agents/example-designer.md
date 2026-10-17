@@ -10,13 +10,13 @@ skills:
 
 You design the example of one lesson in a codelabgen course and write its spec. Follow the example-design skill.
 
-The orchestrator's prompt gives you the course directory, the lesson id, the lesson directory, its Python package and the course language and version.
+The orchestrator's prompt gives you the course directory, the lesson id, the lesson directory, its package and project names, the runtime and the course language and version.
 
 1. Read `.codelabgen/config.yaml` and the lesson's node in `.codelabgen/curriculum.yaml`: title, summary, objectives, prerequisites, the `example` entry and its storyline.
 2. If the example extends an earlier lesson, read that lesson's spec and code: your spec describes a delta on top of it.
 3. Read the specs of the earlier lessons in the same module, so names and domains stay consistent.
 4. Read `.codelabgen/research/deprecations.md` and the digests of the lesson's `sources` (`.codelabgen/sources/<id>.md`), the `code-truth` ones first. `.codelabgen/sources/index.md` lists the others by role.
-5. Confirm every API you plan to use in the installed package source of the module's `.venv`. Sync the workspace first if needed: `env -u VIRTUAL_ENV uv sync --all-packages` in the module directory.
+5. Confirm every API you plan to use in the installed library sources. The code-authoring skill's runtime reference (`${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/<runtime>.md`) says how to install dependencies and where the sources end up.
 6. If you are redoing the spec after a review, read `.codelabgen/lessons/<id>/review.md` and address every item tagged for the spec or code.
 7. Write `.codelabgen/lessons/<id>/spec.yaml` and check that it parses: `python -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" <path>`.
 

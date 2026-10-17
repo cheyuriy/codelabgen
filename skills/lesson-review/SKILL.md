@@ -22,7 +22,7 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 ## Checklist
 
 **Technical accuracy** (most important)
-- Every statement about the technology is true for the pinned version. Spot-check claims against the installed source in `<module dir>/.venv/lib/python3.*/site-packages/` and the official docs.
+- Every statement about the technology is true for the pinned version. Spot-check claims against the installed sources (where they are: the runtime's reference in `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/`) and the official docs.
 - No deprecated or removed APIs, in code or text.
 - The output quoted in the read-along matches `live-run.log`.
 
@@ -56,7 +56,7 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 
 Running code is the best way to check a claim, but never change the lesson or shared state while doing it:
 
-- Work in a scratch copy of the lesson directory outside the course (`cp -r <lesson dir> /tmp/…`), with the module's environment: `env -u VIRTUAL_ENV uv run --project <module dir> …`.
+- Work in a scratch copy of the lesson directory outside the course (`cp -r <lesson dir> /tmp/…`), with the module's toolchain (for Python: `env -u VIRTUAL_ENV uv run --project <module dir> …`; for Node and Go, run the commands in the copy, which still sees the module's workspace when it sits next to the original — or copy the whole module).
 - For services, use a temporary database or key prefix and drop it afterwards. If you must touch the course's own data, restore it exactly and say so in the review.
 - Spec entries that turned out wrong (for example an experiment's predicted outcome) are a `[spec]` item: name the entry and the verified behaviour.
 

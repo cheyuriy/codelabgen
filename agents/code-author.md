@@ -19,4 +19,4 @@ The orchestrator's prompt gives you the course directory, the lesson id, the les
 5. Write the files from the spec's `files`, with the regions from `regions` and the tests from `tests`.
 6. Format, lint, then run `codelabgen verify <id> --course <course dir>` until it passes (at most 5 runs).
 
-Touch only the lesson directory (and the module's `uv.lock` through `uv sync`). Do not write docs. Do not change course state. End with the status JSON (`"stage": "code"`), listing the files you wrote in `artifacts`.
+Touch only the lesson directory (and the module's lockfile through the runtime's install command). Do not write docs. Do not change course state. End with the status JSON (`"stage": "code"`), listing the files you wrote in `artifacts`.

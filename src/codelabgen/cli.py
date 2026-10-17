@@ -245,6 +245,31 @@ def task_list(
     )
 
 
+@app.command("hook", hidden=True)
+def hook_cmd(event: str):
+    """Claude Code hook handler; reads the hook input JSON from stdin."""
+    from codelabgen import hooks
+
+    handler = hooks.HANDLERS.get(event)
+    if handler is None:
+        fail(f"unknown hook event {event!r}")
+    raise typer.Exit(handler(hooks.read_input()))
+
+
+@app.command("eval")
+def eval_cmd(
+    course: CourseOpt = None,
+    reverify: Annotated[bool, typer.Option(help="Run verify again for every lesson")] = False,
+    site: Annotated[bool, typer.Option(help="Also build the site (strict)")] = False,
+):
+    """Score the course against the rubric; write .codelabgen/eval.md and eval.json."""
+    from codelabgen import evaluate
+
+    found = Course.find(course)
+    evaluate.evaluate(found, reverify=reverify, site=site)
+    typer.echo((found.meta / "eval.md").read_text())
+
+
 @app.command("report")
 def report_cmd(course: CourseOpt = None):
     """Write .codelabgen/report.md: phases, sources, lessons, unfinished tasks."""
