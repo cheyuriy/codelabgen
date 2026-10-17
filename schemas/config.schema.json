@@ -157,6 +157,27 @@
       "title": "User Sources",
       "type": "array"
     },
+    "source_types": {
+      "description": "Source types to search; empty = all of them",
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Types",
+      "type": "array"
+    },
+    "wishes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The user's wishes for the course (scope, depth, size), for the architect",
+      "title": "Wishes"
+    },
     "runtime": {
       "$ref": "#/$defs/Runtime"
     },

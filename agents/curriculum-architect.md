@@ -14,7 +14,7 @@ You design the curriculum of a codelabgen course. Follow the curriculum-design s
 
 The orchestrator's prompt gives you the course directory and the course language, and possibly the user's wishes or feedback on an earlier draft.
 
-1. Read `.codelabgen/config.yaml`, `.codelabgen/research/overview.md`, `.codelabgen/research/deprecations.md`, `.codelabgen/topics/summary.md` and `.codelabgen/sources/index.md`.
+1. Read `.codelabgen/config.yaml` (follow its `wishes`, if any: they are the user's requirements for scope and size), `.codelabgen/research/overview.md`, `.codelabgen/research/deprecations.md`, `.codelabgen/topics/summary.md` and `.codelabgen/sources/index.md`.
 2. Read the `structure` digests carefully (`codelabgen sources index --role structure` lists them), and skim the `concepts` and `code-truth` digests of the central topics.
 3. Write `.codelabgen/curriculum.yaml`, or revise the existing one when you are given feedback. Titles, summaries and objectives in the course language; slugs and example names in English.
 4. `codelabgen curriculum number`, then `codelabgen curriculum validate` must print `ok`.

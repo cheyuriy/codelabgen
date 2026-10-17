@@ -103,9 +103,16 @@ def init(
     version: Annotated[str | None, typer.Option(help="Pinned technology version")] = None,
     source: Annotated[list[str] | None, typer.Option(help="User-provided source URL")] = None,
     force: Annotated[bool, typer.Option(help="Allow a non-empty target directory")] = False,
+    source_type: Annotated[
+        list[str] | None, typer.Option(help="Search only these source types (repeatable)")
+    ] = None,
+    wishes: Annotated[str | None, typer.Option(help="Scope, depth or size wishes")] = None,
+    sources_per_type: Annotated[int | None, typer.Option(help="Sources per type")] = None,
 ) -> None:
     """Create a course directory with config, state and event log."""
-    course = init_course(target, topic, lang, version, source, force)
+    course = init_course(
+        target, topic, lang, version, source, force, source_type, wishes, sources_per_type
+    )
     typer.echo(f"initialized course '{topic}' in {course.root}")
 
 
@@ -908,7 +915,19 @@ def sources_apply(course: CourseOpt = None):
 
 # --- config -----------------------------------------------------------------------------
 
-CONFIG_KEYS = {"version", "language", "topic", "runtime.kind", "runtime.per"}
+CONFIG_KEYS = {
+    "version",
+    "language",
+    "topic",
+    "wishes",
+    "runtime.kind",
+    "runtime.per",
+    "budgets.fix_attempts",
+    "budgets.review_rounds",
+    "budgets.parallel_modules",
+    "budgets.parallel_agents",
+    "budgets.sources_per_type",
+}
 
 
 @config_app.command("show")
@@ -925,7 +944,8 @@ def config_set(key: str, value: str, course: CourseOpt = None):
     found = Course.find(course)
     config = found.load_config()
     target, _, name = key.rpartition(".")
-    setattr(config.runtime if target == "runtime" else config, name, value)
+    holder = {"runtime": config.runtime, "budgets": config.budgets}.get(target, config)
+    setattr(holder, name, int(value) if target == "budgets" else value)
     found.save_config(config.model_validate(config.model_dump()))
     StateStore(found).log("config", key=key, value=value)
     typer.echo(f"{key} = {value}")

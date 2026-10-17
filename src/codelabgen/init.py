@@ -29,6 +29,9 @@ def init_course(
     version: str | None = None,
     sources: list[str] | None = None,
     force: bool = False,
+    source_types: list[str] | None = None,
+    wishes: str | None = None,
+    sources_per_type: int | None = None,
 ) -> Course:
     target = target.expanduser().resolve()
     root = plugin_root()
@@ -41,6 +44,12 @@ def init_course(
     if target.exists() and any(target.iterdir()) and not force:
         raise InitError(f"{target} is not empty; pass --force to use it anyway")
 
+    from codelabgen.resume import HUNTERS
+
+    unknown = [t for t in source_types or [] if t not in {name for name, _ in HUNTERS}]
+    if unknown:
+        known = ", ".join(name for name, _ in HUNTERS)
+        raise InitError(f"unknown source types: {', '.join(unknown)}; known: {known}")
     course = Course(target)
     course.meta.mkdir(parents=True, exist_ok=True)
     config = Config(
@@ -49,7 +58,11 @@ def init_course(
         language=language,
         target=str(target),
         user_sources=sources or [],
+        source_types=source_types or [],
+        wishes=wishes,
     )
+    if sources_per_type:
+        config.budgets.sources_per_type = sources_per_type
     course.save_config(config)
     atomic_write(course.state_path, dump_json(State()))
     course.events_path.touch()

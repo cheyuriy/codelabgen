@@ -205,3 +205,24 @@ def test_report(course):
     assert "# Generation report: LangGraph" in text
     assert "| 1.1 | pending | 0 | 0 | 0 | — |" in text
     assert "`lesson:1.1:spec`: running" in text
+
+
+def test_quick_course_settings(tmp_path):
+    course = init_course(
+        tmp_path / "quick",
+        topic="humanize",
+        source_types=["official-docs", "qa"],
+        wishes="At most 3 lessons",
+        sources_per_type=2,
+    )
+    config = course.load_config()
+    assert config.source_types == ["official-docs", "qa"] and config.budgets.sources_per_type == 2
+    store = go_to(course, Phase.SOURCES)
+    hunters = [a["args"]["type"] for a in actions(course) if a["do"] == "run-agent"]
+    assert hunters == ["official-docs", "qa"]
+    for type_ in hunters:
+        store.start_task(f"sources:{type_}")
+        store.finish_task(f"sources:{type_}")
+    assert kinds(course)[0] == ("command", "codelabgen sources render")  # no deprecations needed
+    with pytest.raises(Exception, match="unknown source types: blogs"):
+        init_course(tmp_path / "bad", topic="x", source_types=["blogs"])

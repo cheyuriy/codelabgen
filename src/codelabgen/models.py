@@ -68,6 +68,12 @@ class Config(Model):
     language: str = Field("en", description="Course language (ISO 639-1)")
     target: str = Field(description="Absolute path of the course directory")
     user_sources: list[str] = Field(default_factory=list)
+    source_types: list[str] = Field(
+        default_factory=list, description="Source types to search; empty = all of them"
+    )
+    wishes: str | None = Field(
+        None, description="The user's wishes for the course (scope, depth, size), for the architect"
+    )
     runtime: Runtime = Field(default_factory=Runtime)
     external: list[External] = Field(default_factory=list)
     budgets: Budgets = Field(default_factory=Budgets)

@@ -121,13 +121,17 @@ def next_actions(course: Course) -> dict:
                         why=f"user sources not recorded: {', '.join(missing_user)}",
                     )
                 )
+            wanted = set(config.source_types) or {name for name, _ in HUNTERS}
             for type_, skill in HUNTERS:
+                if type_ not in wanted:
+                    continue
                 task = f"sources:{type_}"
                 if state.tasks.get(task) is None or state.tasks[task].status != "done":
                     actions.append(agent("source-hunter", task, state, type=type_, skill=skill))
             hunters_left = any(a["do"] == "run-agent" for a in actions)
             if not hunters_left:
-                if not (meta / "research" / "deprecations.md").is_file():
+                needs_deprecations = "official-blog" in wanted
+                if needs_deprecations and not (meta / "research" / "deprecations.md").is_file():
                     actions.append(
                         agent(
                             "source-hunter",
@@ -166,7 +170,13 @@ def next_actions(course: Course) -> dict:
             problems = curriculum_problems(course)
             if problems is not None:
                 actions.append(
-                    agent("curriculum-architect", "curriculum:architect", state, problems=problems)
+                    agent(
+                        "curriculum-architect",
+                        "curriculum:architect",
+                        state,
+                        problems=problems,
+                        wishes=config.wishes,
+                    )
                 )
             elif not (meta / "research" / "runtime.md").is_file() or not config.runtime.kind:
                 actions.append(agent("runtime-planner", "curriculum:runtime", state))

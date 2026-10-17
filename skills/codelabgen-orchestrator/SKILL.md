@@ -48,7 +48,7 @@ Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson
 `/codelabgen:new` gives you the topic, the target directory and optionally the language, the version and the user's own source URLs.
 
 1. The target directory must be given explicitly and must be outside the plugin directory. If it is missing, ask for it.
-2. `codelabgen init <dir> --topic "<topic>" --lang <lang> [--version <v>] [--source <url> …]`.
+2. `codelabgen init <dir> --topic "<topic>" --lang <lang> [--version <v>] [--source <url> …] [--source-type <type> …] [--sources-per-type N] [--wishes "…"]`. If the user states wishes for the course later (scope, size, things to skip), save them: `codelabgen config set wishes "…"`.
 3. `codelabgen state phase recon`.
 
 ### Phase `recon`: what is this technology?
@@ -98,7 +98,7 @@ Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson
 
 ### Phase `curriculum`: plan the course
 
-1. Run **curriculum-architect** (task `curriculum:architect`). Pass on any wishes the user stated earlier (scope, depth, things to include or skip), and the `problems` from `state next` if an earlier draft is invalid.
+1. Run **curriculum-architect** (task `curriculum:architect`). Pass on the user's `wishes` (from `state next` / the config) and the `problems` from `state next` if an earlier draft is invalid.
 2. Run **runtime-planner** (task `curriculum:runtime`).
 3. `codelabgen curriculum validate`, `codelabgen sources index` (it now shows which lessons use which source), `codelabgen curriculum render`.
 4. `codelabgen state phase gate_plan`.
