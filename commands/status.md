@@ -12,6 +12,7 @@ Show the status of the codelabgen course at `$ARGUMENTS` (or the current directo
    - the course topic and current phase
    - counts per lesson stage
    - blocked lessons with their reasons, and stale lessons
-   - what happens next, from `state next`
+   - interrupted tasks (`interrupted` in `state next`), if any: work that a previous session cut off
+   - what happens next, from the `actions` of `state next`, and the command to continue (usually `/codelabgen:resume`)
 
 If the CLI reports that no course was found, say so and suggest `/codelabgen:new`. Do not change any state.

@@ -83,6 +83,77 @@
       ],
       "title": "Stage",
       "type": "string"
+    },
+    "TaskState": {
+      "additionalProperties": false,
+      "description": "One unit of agent work (a hunter run, an extraction batch, a lesson stage).\n\nA task still `running` when a session resumes was interrupted: its worker may\nhave left partial artifacts behind.",
+      "properties": {
+        "status": {
+          "default": "running",
+          "enum": [
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "lesson": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lesson"
+        },
+        "attempts": {
+          "default": 1,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "started": {
+          "format": "date-time",
+          "title": "Started",
+          "type": "string"
+        },
+        "finished": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished"
+        }
+      },
+      "required": [
+        "phase"
+      ],
+      "title": "TaskState",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -108,6 +179,13 @@
         "$ref": "#/$defs/LessonState"
       },
       "title": "Lessons",
+      "type": "object"
+    },
+    "tasks": {
+      "additionalProperties": {
+        "$ref": "#/$defs/TaskState"
+      },
+      "title": "Tasks",
       "type": "object"
     },
     "updated": {

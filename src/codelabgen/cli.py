@@ -12,7 +12,7 @@ from typing import Annotated, Any
 import typer
 from pydantic import ValidationError
 
-from codelabgen import checks, diagrams, glossary, research, snippets, toc
+from codelabgen import checks, diagrams, glossary, report, research, resume, snippets, toc
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
 from codelabgen import fetch as fetchmod
@@ -173,8 +173,79 @@ def state_show(course: CourseOpt = None, as_json: Annotated[bool, typer.Option("
 
 @state_app.command("next")
 def state_next(course: CourseOpt = None):
-    """Print (JSON) the next work items for the orchestrator."""
-    emit(store_for(course).next_work())
+    """Print (JSON) what is left to do in the current phase, including interrupted tasks."""
+    emit(resume.next_actions(Course.find(course)))
+
+
+task_app = typer.Typer(no_args_is_help=True, help="Units of agent work, for resuming.")
+state_app.add_typer(task_app, name="task")
+
+
+@task_app.command("start")
+def task_start(
+    key: str,
+    course: CourseOpt = None,
+    lesson: Annotated[str | None, typer.Option()] = None,
+    note: Annotated[str | None, typer.Option()] = None,
+):
+    """Record that a worker starts (say, lesson:1.2:code). Prints the attempt number."""
+    task = store_for(course).start_task(key, lesson, note)
+    emit(
+        {
+            "task": key,
+            "attempt": task.attempts,
+            "interrupted_before": task.attempts > 1 and "interrupted" in (task.note or ""),
+        }
+    )
+
+
+@task_app.command("done")
+def task_done(
+    key: str, course: CourseOpt = None, note: Annotated[str | None, typer.Option()] = None
+):
+    """Record that a worker finished successfully."""
+    store_for(course).finish_task(key, ok=True, note=note)
+    typer.echo(f"{key}: done")
+
+
+@task_app.command("fail")
+def task_fail(
+    key: str, course: CourseOpt = None, note: Annotated[str | None, typer.Option()] = None
+):
+    """Record that a worker failed."""
+    store_for(course).finish_task(key, ok=False, note=note)
+    typer.echo(f"{key}: failed")
+
+
+@task_app.command("reset")
+def task_reset(key: str, course: CourseOpt = None):
+    """Forget a task, so it runs again (for example to redo a source hunter)."""
+    store_for(course).reset_task(key)
+    typer.echo(f"{key}: reset")
+
+
+@task_app.command("list")
+def task_list(
+    course: CourseOpt = None,
+    open_only: Annotated[bool, typer.Option("--open", help="Only running or failed")] = False,
+):
+    """Print (JSON) the tasks, optionally only unfinished ones."""
+    tasks = store_for(course).load().tasks
+    emit(
+        {
+            k: t.model_dump(mode="json", exclude_none=True)
+            for k, t in tasks.items()
+            if not open_only or t.status != "done"
+        }
+    )
+
+
+@app.command("report")
+def report_cmd(course: CourseOpt = None):
+    """Write .codelabgen/report.md: phases, sources, lessons, unfinished tasks."""
+    found = Course.find(course)
+    path = report.build(found)
+    typer.echo(path.read_text())
 
 
 @state_app.command("phase")

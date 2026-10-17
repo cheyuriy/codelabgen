@@ -22,6 +22,7 @@ from codelabgen.models import (
     Phase,
     Stage,
     State,
+    TaskState,
     lesson_sort_key,
     now,
     validate_lesson_id,
@@ -57,6 +58,11 @@ PHASE_ACTION: dict[Phase, str] = {
     Phase.ASSEMBLY: "codelabgen toc, site build, commit",
     Phase.DONE: "nothing to do",
 }
+
+
+def lesson_task_key(lesson_id: str, stage: Stage | str) -> str:
+    """The task of producing `stage` for a lesson, e.g. lesson:1.2:code."""
+    return f"lesson:{lesson_id}:{stage}"
 
 
 class StateStore:
@@ -201,6 +207,41 @@ class StateStore:
         self.log("unblocked", lesson_id, to=lesson.stage)
         return state
 
+    # --- tasks ---------------------------------------------------------------
+
+    def start_task(self, key: str, lesson: str | None = None, note: str | None = None) -> TaskState:
+        """Record that a worker starts. Starting a task that is still `running` means
+        the previous attempt was interrupted; the attempt counter goes up."""
+        with self.transaction() as state:
+            task = state.tasks.get(key)
+            if task and task.status == "running":
+                task.attempts += 1
+                task.note = f"previous attempt interrupted; {note or ''}".strip("; ")
+                task.started = now()
+            elif task and task.status == "done":
+                raise StateError(f"task {key} is already done; use `state task reset` to redo it")
+            else:
+                attempts = task.attempts + 1 if task else 1
+                task = TaskState(phase=state.phase, lesson=lesson, attempts=attempts, note=note)
+            state.tasks[key] = task
+        self.log("task-start", lesson, task=key, attempt=task.attempts)
+        return task
+
+    def finish_task(self, key: str, ok: bool = True, note: str | None = None) -> TaskState:
+        with self.transaction() as state:
+            task = state.tasks.get(key)
+            if task is None:
+                raise StateError(f"unknown task {key}")
+            task.status = "done" if ok else "failed"
+            task.finished, task.note = now(), note or task.note
+        self.log("task-done" if ok else "task-failed", task.lesson, task=key, note=note)
+        return task
+
+    def reset_task(self, key: str) -> None:
+        with self.transaction() as state:
+            state.tasks.pop(key, None)
+        self.log("task-reset", task=key)
+
     def mark_stale(self, lesson_id: str, reason: str) -> State:
         with self.transaction() as state:
             lesson = self._get(state, lesson_id)
@@ -258,6 +299,10 @@ class StateStore:
                         "action": action,
                     }
                 )
+            item = items[-1]
+            item["task"] = lesson_task_key(first, item["next_stage"])
+            task = state.tasks.get(item["task"])
+            item["interrupted"] = bool(task and task.status == "running")
             if len(items) >= parallel:
                 break
 

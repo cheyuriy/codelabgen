@@ -22,6 +22,13 @@
           "title": "Parallel Modules",
           "type": "integer"
         },
+        "parallel_agents": {
+          "default": 4,
+          "description": "Most agents running at once",
+          "minimum": 1,
+          "title": "Parallel Agents",
+          "type": "integer"
+        },
         "sources_per_type": {
           "default": 8,
           "description": "Most sources a hunter proposes per type",

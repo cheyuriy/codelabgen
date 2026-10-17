@@ -51,6 +51,7 @@ codelabgen schema export   # after changing models.py
 ## Status
 
 - M0 (foundation): `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
+- M5 (orchestration and resume): `state next` for every phase (from state and files on disk), `state task start/done/fail/reset/list` with interruption detection, `report`, `parallel_agents` budget; the orchestrator skill rewritten around one main loop; `/codelabgen:resume`.
 - M4 (curriculum): `topics add/merge`, `sources digests/batches/index`, `curriculum number/render`, `config set runtime.*`, `config external add/clear`, custom services in `.codelabgen/services.yaml`; topic-extractor, curriculum-architect and runtime-planner agents; topic-extraction, source-digest, curriculum-design and runtime-strategy skills; `/codelabgen:plan`. Every phase is now covered.
 - M3 (research): `fetch` (HTML/Markdown/PDF cache), `llms-txt`, `transcript`, `pkg-info`, `repo clone` (pinned-version tag), `github meta/repos/code/issues`, `sources add/list/render/apply`, `config`; tech-scout and source-hunter agents; source-evaluation and ten source-type skills; `/codelabgen:new`, `/codelabgen:sources`.
 - M2 (assembly and visuals): `toc` (READMEs, nav, `run.sh`), `site build/serve`, `glossary`, `diagrams render`, `record`, `check all`, `commit`; the `site-assembly` skill; `/codelabgen:build`.

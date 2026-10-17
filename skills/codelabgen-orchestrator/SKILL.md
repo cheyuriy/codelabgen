@@ -1,6 +1,6 @@
 ---
 name: codelabgen-orchestrator
-description: Runs the codelabgen pipeline from the main session — dispatches the worker agents, records state through the `codelabgen` CLI, handles verify failures, reviews and rework, and stops for the user at gates. Load when a /codelabgen command asks for it.
+description: Runs and resumes the codelabgen pipeline from the main session — follows `codelabgen state next`, dispatches the worker agents with task tracking, records state through the `codelabgen` CLI, handles verify failures, reviews and rework, and stops for the user at gates. Load when a /codelabgen command asks for it.
 user-invocable: false
 ---
 
@@ -8,16 +8,38 @@ user-invocable: false
 
 You drive course generation from the main session. Only you start subagents, and only you change course state (see the state-protocol skill). Workers do one job each and end with a status JSON.
 
-> This version covers every phase. `/codelabgen:resume` (continue any course from its state) comes in the next milestone; until then each command below continues from where the course is.
-
-The phases, in order: `init → recon → sources → gate_sources → topics → curriculum → gate_plan → scaffold → lessons → assembly → done`. `codelabgen state show` tells you where a course is. Continue from there.
+The phases, in order: `init → recon → sources → gate_sources → topics → curriculum → gate_plan → scaffold → lessons → assembly → done`. Every command (new, sources, plan, lesson, build, resume) runs the same loop from wherever the course is.
 
 ## Before you start
 
 1. Find the course: the directory from the command's arguments, `$CODELABGEN_COURSE`, or the current directory. Every CLI call below takes `--course <dir>`.
 2. `codelabgen doctor`: stop and tell the user if a required tool is missing. Docker must show `ok` if any lesson uses services. The `github` line shows how GitHub research will work (`gh`, token or anonymous).
-3. `codelabgen state show`.
-4. From the `lessons` phase on: `codelabgen curriculum validate` and `codelabgen env check`. If variables are missing, list them and ask the user to fill in `.env`. Don't produce lessons until it passes.
+3. `codelabgen state show`, then `codelabgen state next`.
+
+## The main loop
+
+`codelabgen state next` is the source of truth for what remains. It reads the state **and** the files on disk, so it never repeats finished work. Its JSON has:
+- `phase`: where the course is
+- `actions`: what to do now, in order. Each has a `do`:
+  - `run-agent`: start the named worker, with the `task` key and `args` (see "Starting a worker")
+  - `command`: a codelabgen command you run yourself
+  - `ask-user`: stop and talk to the user (review gates, missing secrets, a version to confirm)
+  - `advance`: move to the next phase (`run` holds the exact command; `--approved` only after the user approved)
+- `lessons` / `blocked` in the `lessons` phase: the work items (see "Lesson production")
+- `interrupted`: tasks whose worker stopped midway in an earlier session
+
+Repeat: run `state next`, do its actions (independent `run-agent` actions in parallel, up to `budgets.parallel_agents` at once, default 4), then run `state next` again. Stop when it asks for the user, or when the phase is `done`. The phase sections below say how to do each step well; `state next` says which steps are left.
+
+## Tasks and resuming
+
+Every worker run is a **task**:
+1. Before starting the worker: `codelabgen state task start <task> [--lesson <id>]`. It prints the attempt number.
+2. After it succeeds and you have recorded its result: `codelabgen state task done <task>`.
+3. If it fails: `codelabgen state task fail <task> --note "<why>"`. One retry is allowed; the next `task start` counts it.
+
+A task that is still `running` when a session starts was **interrupted**: the session ended while its worker was busy. `state next` marks it (`"interrupted": true`). Its worker may have left partial work: a half-written spec, some of the code, a digest without all its sections, a few sources already added. When you restart such a task, say so in the worker's prompt: "A previous attempt was interrupted. Check what it left in <paths>, keep what is correct, and complete the rest." Never just delete partial work.
+
+Lesson tasks are named `lesson:<id>:<stage being produced>`, for example `lesson:1.2:code` for the code-author run. `state next` gives the key with each lesson.
 
 ## Research
 
@@ -38,7 +60,7 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 ### Phase `sources`: find sources
 
 1. Record the user's own sources first (`user_sources` in `codelabgen config show`): for each, `codelabgen sources add --json '{"url": …, "type": <best guess>, "roles": [<best guess>], "title": <url or page title>, "score": 1.0, "reason": "Provided by the user", "status": "user"}'`.
-2. Run one **source-hunter** per source type, **in parallel** (background agents), each with its skill:
+2. Run one **source-hunter** per source type (task `sources:<type>`), **in parallel** (background agents), each with its skill. `state next` lists only the types not done yet:
 
    | Type in the prompt | Skill |
    |---|---|
@@ -69,15 +91,15 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 ### Phase `topics`: digests and topics
 
 1. `codelabgen sources batches --size 5`: groups of source ids that still need a digest (on a resumed run, only the missing ones).
-2. Run one **topic-extractor** per batch, up to 4 at a time in the background. When one finishes, start the next batch.
+2. Run one **topic-extractor** per batch (the `task` key comes from `state next`), up to `parallel_agents` at a time in the background. When one finishes, start the next batch.
 3. `codelabgen sources digests` must print `all digests present`. Give a missing digest one retry. If it fails again, mark the source as dropped in `sources.md`, run `codelabgen sources apply`, and tell the user.
 4. `codelabgen topics merge` and `codelabgen sources index`. Tell the user in one line how many topics were found.
 5. `codelabgen state phase curriculum`.
 
 ### Phase `curriculum`: plan the course
 
-1. Run **curriculum-architect**. Pass on any wishes the user stated earlier (scope, depth, things to include or skip).
-2. Run **runtime-planner**.
+1. Run **curriculum-architect** (task `curriculum:architect`). Pass on any wishes the user stated earlier (scope, depth, things to include or skip), and the `problems` from `state next` if an earlier draft is invalid.
+2. Run **runtime-planner** (task `curriculum:runtime`).
 3. `codelabgen curriculum validate`, `codelabgen sources index` (it now shows which lessons use which source), `codelabgen curriculum render`.
 4. `codelabgen state phase gate_plan`.
 
@@ -85,7 +107,7 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 
 1. Show the user the plan: the path of `.codelabgen/plan.md`, plus a compact summary in the chat (modules with their lessons, one line each; the example storyline; the services). Ask the runtime planner's **questions** from `.codelabgen/research/runtime.md`, numbered, with the suggested defaults. These are usually which LLM provider and model to use. Tell the user which keys they will need.
 2. Handle feedback in rounds:
-   - Structure changes ("merge 2.3 and 2.4", "add a lesson on streaming", "skip deployment"): run **curriculum-architect** with the feedback, then **runtime-planner**, then validate and render again.
+   - Structure changes ("merge 2.3 and 2.4", "add a lesson on streaming", "skip deployment"): `codelabgen state task reset curriculum:architect` and `… curriculum:runtime`, run **curriculum-architect** with the feedback, then **runtime-planner**, then validate and render again.
    - Small wording changes: edit `curriculum.yaml` yourself, then validate and render.
    - Answers to the questions: run **runtime-planner** with the answers. It records them (`codelabgen config external add …`) and adds the variables to `env`. Then validate and render.
 3. Only when the user explicitly approves the plan and every question is answered: `codelabgen state phase scaffold --approved`.
@@ -99,7 +121,7 @@ The phases, in order: `init → recon → sources → gate_sources → topics �
 
 ## Lesson production
 
-Ask `codelabgen state next` for work. It returns up to `parallel_modules` lessons, at most one per module, with their current stage. Lessons of one module always run in order, because examples build on each other.
+`codelabgen state next` returns up to `parallel_modules` lessons, at most one per module, each with its current stage, the `task` key of the next step, and whether that step was `interrupted`. Lessons of one module always run in order, because examples build on each other.
 
 For each lesson, repeat until it is `done`, blocked, or needs the user:
 
@@ -113,7 +135,7 @@ For each lesson, repeat until it is `done`, blocked, or needs the user:
 | `notes` | Run **lesson-reviewer** | verdict `pass`: `codelabgen state set <id> reviewed`. Verdict `revise`: see "Rework" |
 | `reviewed` | `codelabgen check snippets <id>` must print `ok` | `codelabgen state set <id> done` |
 
-Before recording a stage, check the worker's status JSON and that its artifacts exist. A worker that reports `failed` gets one retry with its notes included in the prompt. After that, block the lesson: `codelabgen state block <id> --reason "<why>"`.
+Wrap each worker run in its task (`state task start` before, `state task done` after recording the stage). `verify` is not a worker: run it directly. Before recording a stage, check the worker's status JSON and that its artifacts exist. A worker that reports `failed` gets one retry with its notes included in the prompt. After that, block the lesson: `codelabgen state block <id> --reason "<why>"`.
 
 When the verify fix budget runs out, `verify --update-state` blocks the lesson by itself (`"stage": "blocked"` in its output). Stop working on that lesson.
 
@@ -145,7 +167,7 @@ When `codelabgen state next` reports that all lessons are done, say so and offer
 
 ## Starting a worker
 
-Workers are this plugin's agents (`codelabgen:<name>`). Give each one everything it needs in its prompt. Get the lesson details from `codelabgen curriculum lessons`.
+Workers are this plugin's agents (`codelabgen:<name>`). Give each one everything it needs in its prompt. Get the lesson details from `codelabgen curriculum lessons`. For research and curriculum workers, pass the course directory, the course language, the technology and version, and the `args` from `state next`.
 
 ```text
 Course directory: <absolute path>
@@ -157,6 +179,7 @@ Example: <new | extends lesson X>
 Lesson sources (digests in .codelabgen/sources/): <the node's sources>
 <For rework: Review round N; fix the items tagged [<part>] in .codelabgen/lessons/<id>/review.md>
 <For code-fixer: the full JSON printed by codelabgen verify>
+<For an interrupted task: A previous attempt was interrupted; check and complete its partial work in …>
 Task: <one line, e.g. "Write the lesson spec">
 ```
 
@@ -164,4 +187,8 @@ Wait for the status JSON at the end of the worker's reply. If it is missing or m
 
 ## Keeping the user informed
 
-After each stage, send one short line: lesson, stage reached, anything notable. When the work stops (all done, blocked or waiting for the user), summarize with `codelabgen state show`.
+After each step, send one short line: what finished, anything notable. When the work stops (all done, blocked or waiting for the user), summarize with `codelabgen state show`. At the end of a course, `codelabgen report` gives the generation summary (timings, verify runs, review rounds, unfinished tasks).
+
+## Budgets
+
+`budgets` in `.codelabgen/config.yaml`: `fix_attempts` (verify failures before a lesson blocks), `review_rounds`, `parallel_modules` (lessons in flight), `parallel_agents` (agents at once in research and topics), `sources_per_type`. The CLI enforces the first two. Respect the last three yourself.

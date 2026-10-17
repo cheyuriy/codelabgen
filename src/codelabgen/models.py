@@ -55,6 +55,7 @@ class Budgets(Model):
     fix_attempts: int = Field(5, ge=1, description="Verify-fix attempts before a lesson is blocked")
     review_rounds: int = Field(2, ge=0)
     parallel_modules: int = Field(2, ge=1)
+    parallel_agents: int = Field(4, ge=1, description="Most agents running at once")
     sources_per_type: int = Field(8, ge=1, description="Most sources a hunter proposes per type")
 
 
@@ -126,11 +127,28 @@ class LessonState(Model):
     updated: datetime = Field(default_factory=now)
 
 
+class TaskState(Model):
+    """One unit of agent work (a hunter run, an extraction batch, a lesson stage).
+
+    A task still `running` when a session resumes was interrupted: its worker may
+    have left partial artifacts behind.
+    """
+
+    status: Literal["running", "done", "failed"] = "running"
+    phase: Phase
+    lesson: str | None = None
+    attempts: int = 1
+    note: str | None = None
+    started: datetime = Field(default_factory=now)
+    finished: datetime | None = None
+
+
 class State(Model):
     schema_version: int = 1
     phase: Phase = Phase.INIT
     approved_gates: list[Phase] = Field(default_factory=list)
     lessons: dict[str, LessonState] = Field(default_factory=dict)
+    tasks: dict[str, TaskState] = Field(default_factory=dict)
     updated: datetime = Field(default_factory=now)
 
     @field_validator("lessons")

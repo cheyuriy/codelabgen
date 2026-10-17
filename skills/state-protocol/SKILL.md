@@ -62,7 +62,9 @@ init → recon → sources → gate_sources → topics → curriculum → gate_p
 ## Reading state
 
 - `codelabgen state show`: human summary. `--json` gives the full state.
-- `codelabgen state next`: JSON with the next work items. Lessons in one module run in order; separate modules run in parallel up to the budget.
+- `codelabgen state next`: JSON with what is left in the current phase (`actions`), the lesson work items in the `lessons` phase, and `interrupted` tasks. Lessons in one module run in order; separate modules run in parallel up to the budget.
+- `codelabgen state task list --open`: tasks still running or failed. Tasks (`state task start/done/fail/reset`) are the orchestrator's record of worker runs; workers don't touch them.
+- `codelabgen report`: the generation summary in `.codelabgen/report.md`.
 - `codelabgen schema show <name>`: JSON Schema of a data file (`config`, `source`, `topic`, `curriculum`, `lesson-spec`, `run-result`, `glossary-entry`, …).
 
 ## Logging
