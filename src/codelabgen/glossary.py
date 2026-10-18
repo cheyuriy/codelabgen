@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -63,6 +64,13 @@ def anchor(term: str) -> str:
     return github_slug(term)
 
 
+def heading(term: str) -> str:
+    """The term as heading text: in code ticks when `_` or `*` would turn it into emphasis."""
+    if re.search(r"(^|\W)[_*]|[_*]($|\W)", term):
+        return f"`{term}`"
+    return term
+
+
 def link(course: Course, term: str, from_file: Path) -> str:
     """Relative link from a Markdown file to the term's entry in GLOSSARY.md."""
     entries = {e.term.casefold(): e for e in load(course)}
@@ -83,7 +91,7 @@ def build(course: Course) -> list[Path]:
 
     lines = [f"# {text['glossary']}", "", text["glossary_intro"], ""]
     for entry in entries:
-        lines += [f"## {entry.term}", "", entry.definition, ""]
+        lines += [f"## {heading(entry.term)}", "", entry.definition, ""]
         if entry.aliases:
             lines += [f"*{text['also']}: {', '.join(entry.aliases)}*", ""]
         if entry.first_lesson and entry.first_lesson in lesson_dirs:

@@ -74,6 +74,15 @@ def test_glossary_add_update_build_and_link(course):
         glossary.link(course, "nope", notes)
 
 
+def test_glossary_heading_keeps_dunder_terms_out_of_emphasis(course):
+    glossary.add(course, "__interrupt__", "The pause key.")
+    glossary.add(course, "path_map", "Routing map.")
+    text = glossary.build(course)[0].read_text()
+    assert "## `__interrupt__`" in text and "## path_map" in text
+    notes = lesson_dir(course) / "docs" / "notes.md"
+    assert glossary.link(course, "__interrupt__", notes).endswith("#__interrupt__")
+
+
 # --- toc --------------------------------------------------------------------------------
 
 
