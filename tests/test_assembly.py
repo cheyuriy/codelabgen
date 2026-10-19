@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from codelabgen import checks, glossary, toc
+from codelabgen import checks, glossary, sources, toc
 from codelabgen.init import init_course
 from codelabgen.markdown import github_slug, heading_slugs, prose_lines
 from codelabgen.scaffold import scaffold_course
@@ -111,6 +111,32 @@ def test_toc_generates_pages_nav_and_run_sh(course):
     assert "readalong.md" not in nav  # only pages that exist
 
     assert toc.generate(course) == []  # stable output
+    assert "## Источники" not in readme  # no sources yet, no section
+
+
+def test_toc_readme_lists_used_sources(course):
+    row = {"roles": ["concepts"], "score": 0.9, "reason": "Secret review note."}
+    sources.add(
+        course,
+        [
+            {**row, "url": "https://example.com/blog", "type": "official-blog", "title": "Blog"},
+            {**row, "url": "https://example.com/docs", "type": "official-docs", "title": "Docs"},
+            {**row, "url": "https://example.com/old", "type": "article", "title": "Dropped"},
+            {**row, "url": "https://example.com/mine", "type": "article", "title": "Mine"},
+        ],
+    )
+    status = {"Blog": "kept", "Docs": "kept", "Dropped": "dropped", "Mine": "user"}
+    items = sources.load(course)
+    for s in items:
+        s.status = status[s.title]
+    sources.save(course, items)
+    toc.generate(course)
+
+    readme = (course.root / "README.md").read_text()
+    section = readme.split("## Источники\n", 1)[1]
+    assert section.index("### Официальная документация") < section.index("### Официальный блог")
+    assert "- [Docs](https://example.com/docs)" in section and "[Mine]" in section
+    assert "Dropped" not in section and "Secret review note" not in section
 
     run_sh = course.root / "run.sh"
     listed = subprocess.run([str(run_sh), "list"], capture_output=True, text=True, check=True)

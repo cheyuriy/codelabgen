@@ -14,7 +14,7 @@ A course is read in two places: on GitHub (or in an IDE) as plain Markdown, and 
 
 | File | Content |
 |---|---|
-| `README.md` | Course title, description, getting started (`.env`, `./run.sh`, the site), contents with summaries |
+| `README.md` | Course title, description, getting started (`.env`, `./run.sh`, the site), contents with summaries, the sources the course is built on (kept or added by the user; titles and links by type) |
 | `<module>/README.md`, section READMEs | Title, summary, objectives, lesson list |
 | `<lesson>/README.md` | Summary, "continues lesson X" note, objectives, links to notes / read-along / code, how to run and test, previous/next |
 | `mkdocs.yml` | Site config and nav (only pages that exist) |

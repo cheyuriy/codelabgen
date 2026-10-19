@@ -13,7 +13,7 @@ import yaml
 
 from codelabgen import curriculum as cur
 from codelabgen import env as envmod
-from codelabgen import glossary, runtimes
+from codelabgen import glossary, runtimes, sources
 from codelabgen.course import Course, atomic_write
 from codelabgen.curriculum import Lesson
 from codelabgen.i18n import labels
@@ -171,7 +171,24 @@ def course_readme(course, curriculum: Curriculum, lessons, services, text) -> st
         visit(module, (), 0)
     if glossary.load(course):
         lines += [f"[{text['glossary']}]({glossary.GLOSSARY_PAGE})", ""]
+    lines += sources_section(course, text)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def sources_section(course: Course, text) -> list[str]:
+    """The sources the course is built from, by type: titles and links only (no review scores
+    or notes, which stay in .codelabgen)."""
+    used = sources.used(course)
+    if not used:
+        return []
+    lines = [f"## {text['sources']}", "", text["sources_intro"], ""]
+    for type_ in sources.TYPE_ORDER:
+        group = [s for s in used if s.type == type_]
+        if group:
+            lines += [f"### {text[f'type_{type_}']}", ""]
+            lines += [f"- [{s.title}]({s.url})" for s in group]
+            lines.append("")
+    return lines
 
 
 def group_readme(course: Course, folder: Path, node: CurriculumNode, text) -> str:
