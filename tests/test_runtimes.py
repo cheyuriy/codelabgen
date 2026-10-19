@@ -76,6 +76,7 @@ def test_scaffold_layout(tmp_path, kind, files):
         assert (course.root / name).is_file(), name
     gitignore = (course.root / ".gitignore").read_text()
     assert ("node_modules/" in gitignore) == (kind == "node")
+    assert ".codelabgen/" in gitignore.splitlines()
     runtime = runtimes.get(kind)
     item = lesson(course, "1.2")
     assert runtimes.is_stub(runtime, course.root / item.rel_dir, item)

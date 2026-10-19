@@ -114,7 +114,7 @@ def walk_files(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
 class PythonUv(Runtime):
     kind = "python-uv"
     tools = ("uv",)
-    gitignore = (".venv/", "__pycache__/", ".pytest_cache/", ".ruff_cache/")
+    gitignore = (".venv/", "__pycache__/", ".pytest_cache/", ".ruff_cache/", ".mypy_cache/")
 
     def course_files(self) -> dict[str, str]:
         from codelabgen.scaffold import TEMPLATES
