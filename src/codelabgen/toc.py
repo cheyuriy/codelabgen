@@ -102,7 +102,8 @@ def generate(course: Course) -> list[Path]:
         render(
             "mkdocs.yml.j2",
             title=curriculum.title,
-            description=curriculum.description,
+            # the site meta description: the opening paragraph, without the README's lists
+            description=" ".join(curriculum.description.strip().split("\n\n")[0].split()),
             language=config.language,
             labels=text,
             nav="\n".join("  " + line for line in nav.splitlines()),
@@ -147,6 +148,12 @@ def course_readme(course, curriculum: Curriculum, lessons, services, text) -> st
         "",
         "   ```bash",
         "   ./run.sh site serve",
+        "   ```",
+        "",
+        f"5. {text['branch_step']}",
+        "",
+        "   ```bash",
+        f"   git switch -c {text['branch_name']}",
         "   ```",
         "",
         f"## {text['contents']}",

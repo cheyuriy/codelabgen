@@ -11,6 +11,11 @@ LABELS: dict[str, dict[str, str]] = {
         "env_step": "Copy `.env.example` to `.env` and fill in the values.",
         "run_step": "Run a lesson from the course root:",
         "site_step": "Browse the course as a website:",
+        "branch_step": (
+            "Try your own experiments in a separate git branch, so the original lessons stay "
+            "as they are and you can always compare with them or start again:"
+        ),
+        "branch_name": "my-experiments",
         "lessons": "Lessons",
         "what_you_learn": "What you will learn",
         "materials": "Lesson materials",
@@ -75,6 +80,10 @@ LABELS: dict[str, dict[str, str]] = {
         "env_step": "Скопируйте `.env.example` в `.env` и заполните значения.",
         "run_step": "Запустите урок из корня курса:",
         "site_step": "Откройте курс как сайт:",
+        "branch_step": (
+            "Свои эксперименты делайте в отдельной ветке git: исходные уроки останутся "
+            "как есть, и с ними всегда можно сравнить или начать заново:"
+        ),
         "lessons": "Уроки",
         "what_you_learn": "Чему вы научитесь",
         "materials": "Материалы урока",

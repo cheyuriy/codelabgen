@@ -100,6 +100,7 @@ def test_toc_generates_pages_nav_and_run_sh(course):
 
     readme = (course.root / "README.md").read_text()
     assert "## Как начать" in readme and "[1.2 Условные рёбра и маршрутизация]" in readme
+    assert "5. Свои эксперименты" in readme and "git switch -c my-experiments" in readme
     lesson3 = (lesson_dir(course, "1.3-persistence") / "README.md").read_text()
     assert "> [!NOTE]" in lesson3 and "../1.2-routing/README.md" in lesson3
     assert "docker compose up -d --wait postgres" in lesson3
