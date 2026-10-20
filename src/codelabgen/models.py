@@ -38,7 +38,7 @@ class Model(BaseModel):
 
 
 class Runtime(Model):
-    kind: str | None = Field(None, description="Ecosystem, e.g. 'python-uv', 'node', 'go'")
+    kind: str | None = Field(None, description="Ecosystem, e.g. 'python-uv', 'node', 'go', 'rust'")
     per: Literal["module", "lesson"] = "module"
     services: list[str] = Field(default_factory=list, description="Docker Compose services")
     port_offset: int | None = Field(

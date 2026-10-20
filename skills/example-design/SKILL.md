@@ -46,7 +46,7 @@ The spec lists the tests the code-author must write. Tests run in `codelabgen ve
 
 ## The live run (`run_cmd`)
 
-`run_cmd` runs in the lesson directory: for Python through `uv run`, usually `python -m <package>`; for Node usually `npx tsx src/main.ts`; for Go usually `go run .`. It must:
+`run_cmd` runs in the lesson directory: for Python through `uv run`, usually `python -m <package>`; for Node usually `npx tsx src/main.ts`; for Go usually `go run .`; for Rust usually `cargo run --quiet`. It must:
 
 - finish on its own in well under `run_timeout_s` (default 300 s; aim for seconds)
 - print output that shows the concept working; the notes quote it as the real output

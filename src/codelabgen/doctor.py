@@ -32,6 +32,7 @@ TOOLS = [
     Tool("agg", "converting terminal recordings to GIF"),
     Tool("node", "Node courses (with npm); Mermaid and LaTeX checks"),
     Tool("go", "Go courses", version_args=("version",)),
+    Tool("cargo", "Rust courses (with rustc, clippy, rustfmt and a C linker, `cc`)"),
     Tool("yt-dlp", "talk transcripts (without it, `uvx yt-dlp` is used)"),
 ]
 

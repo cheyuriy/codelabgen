@@ -33,8 +33,9 @@ TEST_PATTERNS = {
     "python-uv": re.compile(r"^\s*def test_\w+", re.MULTILINE),
     "node": re.compile(r"^\s*(?:test|it)\s*\(", re.MULTILINE),
     "go": re.compile(r"^func Test\w+\s*\(", re.MULTILINE),
+    "rust": re.compile(r"^\s*#\[(?:\w+::)?test\]", re.MULTILINE),
 }
-COMMENT = {"python-uv": ("#",), "node": ("//", "/*", "*"), "go": ("//",)}
+COMMENT = {"python-uv": ("#",), "node": ("//", "/*", "*"), "go": ("//",), "rust": ("//",)}
 HUMAN_QUESTIONS = [
     "Technical accuracy: everything said is true for the pinned version",
     "Example: as simple as the idea allows, domain doesn't distract",

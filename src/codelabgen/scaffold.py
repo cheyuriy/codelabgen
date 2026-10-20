@@ -221,6 +221,7 @@ TEXT_SUFFIXES = {
     ".go",
     ".mod",
     ".sum",
+    ".rs",
     ".sql",
     ".sh",
     ".cfg",

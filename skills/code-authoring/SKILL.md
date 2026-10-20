@@ -1,6 +1,6 @@
 ---
 name: code-authoring
-description: How to write and fix the code of a codelabgen lesson from its spec — layout, pinned dependencies, teaching-grade comments, region markers for snippets, offline tests, environment variables, and getting `codelabgen verify` to pass — for Python (uv), Node (TypeScript) and Go courses. Used by the code-author and code-fixer agents.
+description: How to write and fix the code of a codelabgen lesson from its spec — layout, pinned dependencies, teaching-grade comments, region markers for snippets, offline tests, environment variables, and getting `codelabgen verify` to pass — for Python (uv), Node (TypeScript), Go and Rust courses. Used by the code-author and code-fixer agents.
 user-invocable: false
 ---
 
@@ -17,6 +17,7 @@ The course runtime is `runtime.kind` in `.codelabgen/config.yaml`. Read its refe
 | `python-uv` | `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/python.md` |
 | `node` | `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/node.md` |
 | `go` | `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/go.md` |
+| `rust` | `${CLAUDE_PLUGIN_ROOT}/skills/code-authoring/references/rust.md` |
 
 `codelabgen curriculum lessons` gives each lesson's directory, `package` and `project` names.
 
@@ -24,7 +25,7 @@ The course runtime is `runtime.kind` in `.codelabgen/config.yaml`. Read its refe
 
 - The lesson directory was created by `codelabgen scaffold`. Keep its layout.
 - Create exactly the files in the spec's `files`. If you need another file, say so in the status `notes`.
-- The scaffold's placeholder (`__init__.py` docstring, `src/main.ts` or `main.go` with a comment) is yours to replace or keep.
+- The scaffold's placeholder (`__init__.py` docstring, `src/main.ts`, `main.go` or `src/main.rs` with a comment) is yours to replace or keep.
 - Don't touch `docs/`, `README.md` or `.codelabgen/`.
 
 ## Use only APIs you have seen
@@ -44,7 +45,7 @@ Before writing a call, confirm it exists in the installed version. The reference
 Wrap every region the spec lists, in the language's line-comment syntax:
 
 ```
-# region route        (Python)        // region route        (TypeScript, Go)
+# region route        (Python)        // region route        (TypeScript, Go, Rust)
 …                                      …
 # endregion                            // endregion
 ```

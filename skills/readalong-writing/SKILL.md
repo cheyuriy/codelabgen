@@ -44,7 +44,7 @@ Order the files so the reader understands each one before the next needs it. Usu
 - **By name first:** functions, classes, methods, variables, in backticks: `build_graph`, `TicketState.route`.
 - **Link each name to its place,** relative to the read-along, with a line anchor: `[`build_graph`](../src/l1_2_routing/graph.py#L74)`, or a range: `…graph.py#L74-L94`. In VS Code these links open the file at that line, on GitHub they highlight it, and the reader always knows where to look.
 - **Line numbers for single lines** that matter: "line 87 adds the conditional edge". Take the numbers from the final code, and check them.
-- Paths go from `docs/readalong.md` to the code: `../src/…` for Python and Node, `../<file>.go` for Go.
+- Paths go from `docs/readalong.md` to the code: `../src/…` for Python, Node and Rust, `../<file>.go` for Go.
 - Don't copy code into the read-along. A short inline fragment in backticks is fine when you talk about it: "the call `builder.add_conditional_edges("classify", route_ticket)`".
 
 ## What to explain

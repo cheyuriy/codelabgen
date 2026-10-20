@@ -216,7 +216,7 @@ Workers are this plugin's agents (`codelabgen:<name>`). Give each one everything
 Course directory: <absolute path>
 Lesson: <id> "<title>"
 Lesson directory: <absolute path>      Module directory: <absolute path>
-Runtime: <python-uv | node | go>       Package / project: <package> / <project>
+Runtime: <python-uv | node | go | rust>  Package / project: <package> / <project>
 Course language: <language>            Technology: <topic> <version>
 Example: <new | extends lesson X>
 Lesson sources (digests in .codelabgen/sources/): <the node's sources>

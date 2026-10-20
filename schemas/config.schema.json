@@ -82,7 +82,7 @@
             }
           ],
           "default": null,
-          "description": "Ecosystem, e.g. 'python-uv', 'node', 'go'",
+          "description": "Ecosystem, e.g. 'python-uv', 'node', 'go', 'rust'",
           "title": "Kind"
         },
         "per": {

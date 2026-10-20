@@ -57,7 +57,7 @@ You are the last check before a lesson counts as done. Judge it as a demanding t
 
 Running code is the best way to check a claim, but never change the lesson or shared state while doing it:
 
-- Work in a scratch copy of the lesson directory outside the course (`cp -r <lesson dir> /tmp/…`), with the module's toolchain (for Python: `env -u VIRTUAL_ENV uv run --project <module dir> …`; for Node and Go, run the commands in the copy, which still sees the module's workspace when it sits next to the original — or copy the whole module).
+- Work in a scratch copy of the lesson directory outside the course (`cp -r <lesson dir> /tmp/…`), with the module's toolchain (for Python: `env -u VIRTUAL_ENV uv run --project <module dir> …`; for Node, Go and Rust, run the commands in the copy, which still sees the module's workspace when it sits next to the original — or copy the whole module).
 - For services, use a temporary database or key prefix and drop it afterwards. If you must touch the course's own data, restore it exactly and say so in the review.
 - Spec entries that turned out wrong (for example an experiment's predicted outcome) are a `[spec]` item: name the entry and the verified behaviour.
 

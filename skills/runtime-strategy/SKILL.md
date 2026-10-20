@@ -15,9 +15,10 @@ Every lesson must install, run and pass its tests on the user's machine with one
 | Python | `python-uv` | `references/python-uv.md` |
 | Node / TypeScript (JavaScript libraries too) | `node` | `references/node.md` |
 | Go | `go` | `references/go.md` |
-| Anything else | not supported | Report `needs-user`: codelabgen can scaffold and verify only these three |
+| Rust | `rust` | `references/rust.md` |
+| Anything else | not supported | Report `needs-user`: codelabgen can scaffold and verify only these four |
 
-Set it: `codelabgen config set runtime.kind <kind> --course <dir>`. The runtime must be on the user's machine: check `codelabgen doctor` (`uv`, `node`/`npm`, or `go`).
+Set it: `codelabgen config set runtime.kind <kind> --course <dir>`. The runtime must be on the user's machine: check `codelabgen doctor` (`uv`, `node`/`npm`, `go`, or `cargo`).
 
 Layout: one workspace per module, for every runtime. Lessons of a module share dependency versions, which is right when the course pins one version of the technology. A lesson that truly needs a conflicting version (rare, for example comparing two major versions) goes into a module of its own. Leave `runtime.per` at `module`: per-lesson projects are not implemented.
 

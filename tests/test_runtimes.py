@@ -1,6 +1,6 @@
-"""Runtimes: layout, stubs, extend-copy and commands for python-uv, node and go.
+"""Runtimes: layout, stubs, extend-copy and commands for python-uv, node, go and rust.
 
-Tests that run real toolchains are skipped when node or go is not installed.
+Tests that run real toolchains are skipped when node, go or cargo is not installed.
 """
 
 import json
@@ -68,6 +68,14 @@ def write_spec(course, lesson_id, run_cmd):
             ],
         ),
         ("go", ["1-basics/go.work", "1-basics/1.2-routing/go.mod", "1-basics/1.2-routing/main.go"]),
+        (
+            "rust",
+            [
+                "1-basics/Cargo.toml",
+                "1-basics/1.2-routing/Cargo.toml",
+                "1-basics/1.2-routing/src/main.rs",
+            ],
+        ),
     ],
 )
 def test_scaffold_layout(tmp_path, kind, files):
@@ -114,6 +122,34 @@ def test_go_copy_renames_module_path(tmp_path):
     assert (target / "queue" / "queue.go").is_file()
 
 
+def test_rust_files(tmp_path):
+    course = make_course(tmp_path, "rust")
+    workspace = (course.root / "1-basics" / "Cargo.toml").read_text()
+    assert '"1.2-routing",' in workspace and "resolver" in workspace
+    manifest = (course.root / lesson(course, "1.2").rel_dir / "Cargo.toml").read_text()
+    assert 'name = "l1-2-routing"' in manifest and "publish = false" in manifest
+    assert "target/" in (course.root / ".gitignore").read_text().splitlines()
+
+
+def test_rust_copy_renames_crate(tmp_path):
+    course = make_course(tmp_path, "rust")
+    source = course.root / lesson(course, "1.2").rel_dir
+    (source / "src" / "lib.rs").write_text("pub mod router;\n")
+    (source / "src" / "main.rs").write_text("use l1_2_routing::router;\n\nfn main() {}\n")
+    (source / "src" / "router.rs").write_text("pub fn route() {}\n")
+    (source / "target").mkdir()
+    assert scaffold_lesson(course, "1.3").copied_from == {"1.3": "1.2"}
+    target = course.root / lesson(course, "1.3").rel_dir
+    assert 'name = "l1-3-persistence"' in (target / "Cargo.toml").read_text()
+    assert "use l1_3_persistence::router;" in (target / "src" / "main.rs").read_text()
+    assert (target / "src" / "router.rs").is_file()
+    assert not (target / "target").exists()
+    runtime = runtimes.get("rust")
+    assert runtime.test_files(target, lesson(course, "1.3")) == []
+    (target / "src" / "router.rs").write_text("#[cfg(test)]\nmod tests {}\n")
+    assert runtime.test_files(target, lesson(course, "1.3")) == [target / "src" / "router.rs"]
+
+
 def test_node_copy_renames_package(tmp_path):
     course = make_course(tmp_path, "node")
     source = course.root / lesson(course, "1.2").rel_dir
@@ -135,6 +171,7 @@ def test_node_copy_renames_package(tmp_path):
         ),
         ("node", "cd 1-basics && npm install --no-audit --no-fund --silent", "npx tsx src/main.ts"),
         ("go", "cd 1-basics/1.2-routing && go mod download", "go run ."),
+        ("rust", "cd 1-basics && cargo fetch --quiet", "cargo run --quiet"),
     ],
 )
 def test_readme_and_run_sh_commands(tmp_path, kind, sync, run):
@@ -149,7 +186,7 @@ def test_readme_and_run_sh_commands(tmp_path, kind, sync, run):
 
 
 def test_unknown_runtime():
-    with pytest.raises(runtimes.UnknownRuntime, match="supported: python-uv, node, go"):
+    with pytest.raises(runtimes.UnknownRuntime, match="supported: python-uv, node, go, rust"):
         runtimes.get("ruby")
 
 
@@ -191,5 +228,23 @@ def test_node_verify_end_to_end(tmp_path):
         'test("add", () => {\n  expect(add(2, 3)).toBe(5);\n});\n'
     )
     write_spec(course, "1.1", "npx tsx src/main.ts")
+    result = verify(course, "1.1")
+    assert result.passed, result.failed_step
+
+
+@pytest.mark.skipif(not shutil.which("cargo"), reason="cargo is not installed")
+def test_rust_verify_end_to_end(tmp_path):
+    course = make_course(tmp_path, "rust")
+    folder = course.root / lesson(course, "1.1").rel_dir
+    (folder / "src" / "lib.rs").write_text(
+        "/// Adds two numbers.\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n"
+    )
+    (folder / "src" / "main.rs").write_text(
+        'use l1_1_hello_graph::add;\n\nfn main() {\n    println!("{}", add(2, 3));\n}\n'
+    )
+    (folder / "tests" / "add.rs").write_text(
+        "use l1_1_hello_graph::add;\n\n#[test]\nfn adds() {\n    assert_eq!(add(2, 3), 5);\n}\n"
+    )
+    write_spec(course, "1.1", "cargo run --quiet")
     result = verify(course, "1.1")
     assert result.passed, result.failed_step
