@@ -12,4 +12,4 @@ Load the `codelabgen-orchestrator` skill and follow its lesson-production sectio
 - With `--redo <stage>`, first move the lesson back with `codelabgen state set <id> <stage> --note "redo requested by the user"`, then continue from there. For example, `--redo verified` rewrites the read-along and notes.
 - `--course <dir>` selects the course; otherwise use `$CODELABGEN_COURSE` or the current directory.
 
-If the course is not in the `lessons` phase yet, explain which phase it is in and stop. For an M1 test course you prepare by hand, advance the phases with `codelabgen state phase` (gates need `--approved`) only when the user asks you to.
+If the course is not in the `lessons` phase yet, explain which phase it is in and stop. For a test course prepared by hand (`tests/fixtures/make-test-course.sh`), advance the phases with `codelabgen state phase` (gates need `--approved`) only when the user asks you to.

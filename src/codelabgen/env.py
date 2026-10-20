@@ -1,4 +1,4 @@
-"""Layered environment: course `.env`, then the lesson's `.env` (PLAN.md §3.1)."""
+"""Layered environment: course `.env`, then the lesson's `.env`."""
 
 from __future__ import annotations
 

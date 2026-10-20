@@ -2,8 +2,6 @@
 
 A Claude Code plugin that generates hands-on courses for a technology, language, framework or library. Every lesson is built around a runnable, tested code example and has three parts: the code, a read-along walkthrough of the code, and book-style notes.
 
-The design is in `seed_docs/PLAN.md` (kept out of git).
-
 ## Layout
 
 | Path | What it holds |
@@ -12,9 +10,10 @@ The design is in `seed_docs/PLAN.md` (kept out of git).
 | `commands/` | Slash commands (`/codelabgen:status`, …) |
 | `skills/` | Procedural knowledge loaded by the orchestrator and the agents |
 | `agents/` | Subagent definitions (leaf workers) |
+| `hooks/` | Plugin hooks: state-file guard, subagent log |
 | `src/codelabgen/`, `tests/` | The `codelabgen` CLI with every deterministic step; the repo root is its uv project |
+| `src/codelabgen/templates/` | Templates for generated course files |
 | `schemas/` | JSON Schemas of the data files, generated from `src/codelabgen/models.py` |
-| `templates/` | Templates for generated course files |
 
 ## Setup
 
@@ -47,6 +46,27 @@ Optional tools, each enabling one feature (`codelabgen doctor` shows what is mis
 | `go` | `go.work` per module, one Go module per lesson; go vet, gofmt, go test | `go` |
 | `rust` | Cargo workspace per module, one package per lesson; clippy, rustfmt, cargo test | `cargo` with `clippy` and `rustfmt` (rustup's default profile), a C linker (`cc`) |
 
+## Making a course
+
+In Claude Code started with the plugin:
+
+```
+/codelabgen:new LangGraph --target ~/courses/langgraph --lang en
+```
+
+`/codelabgen:new` builds the course in one session: research, the source review, topics and the curriculum, the plan review, every lesson, assembly and the evaluation. The reviews and other questions (LLM provider, keys) are asked in the chat. Useful options: `--version` pins the technology version, `--source <url>` adds sources you want included, `--source-type` and `--sources-per-type` narrow the research, and `--wishes "…"` sets scope or size ("at most 3 lessons").
+
+Other commands:
+
+| Command | What it does |
+|---|---|
+| `/codelabgen:resume <dir>` | Continue a course from wherever it stopped, including work interrupted in an earlier session |
+| `/codelabgen:status <dir>` | Phase, lesson stages and blocked lessons |
+| `/codelabgen:sources`, `/codelabgen:plan` | Review sources or the plan of a course stopped at that review, then continue to the end |
+| `/codelabgen:lesson <id\|all>` | Produce (or redo, with `--redo <stage>`) single lessons |
+| `/codelabgen:build` | Assemble the course: glossary, READMEs, `run.sh`, checks, the MkDocs site, a git commit |
+| `/codelabgen:extend <dir> "<request>"` | Deepen a topic or add new ones to a finished course |
+
 ## Evaluating generated courses
 
 `codelabgen eval --course <dir> [--reverify] [--site]` scores a course (`.codelabgen/eval.md`, `eval.json`):
@@ -61,22 +81,6 @@ Optional tools, each enabling one feature (`codelabgen doctor` shows what is mis
 
 The automatic score catches broken and incomplete courses; quality needs a reader. `eval` writes `.codelabgen/eval-human.md`, a checklist for two sampled lessons (the first, and the most reworked one). Fill it in and run `eval` again.
 
-Suggested evaluation set, one per runtime:
-
-```
-/codelabgen:new LangGraph --target ~/Documents/courses/eval-langgraph --lang ru
-/codelabgen:new Zod --target ~/Documents/courses/eval-zod --lang en
-/codelabgen:new "chi (Go HTTP router)" --target ~/Documents/courses/eval-chi --lang en
-```
-
-`/codelabgen:new` stops at the source review. Continue each course to the end:
-
-1. `/codelabgen:sources --course <dir>`: approve (or edit) `.codelabgen/sources.md`. Topics and the curriculum are drafted, and it stops at the plan review.
-2. `/codelabgen:plan --course <dir>`: approve the plan and answer the runtime questions (LLM provider, keys). The course is scaffolded and all lessons are produced.
-3. `/codelabgen:build --course <dir>`: assemble the course and the site.
-
-`/codelabgen:resume <dir>` continues from wherever a course stopped. When a course is done: `codelabgen eval --course <dir> --reverify --site`, fill in `eval-human.md`, and share `eval.md`, `report.md` and the human notes.
-
 ## Development
 
 With the environment activated:
@@ -86,14 +90,3 @@ pytest
 ruff check . && ruff format --check .
 codelabgen schema export   # after changing models.py
 ```
-
-## Status
-
-- M0 (foundation): `codelabgen init`, `state`, `schema`, `doctor`; the `state-protocol` skill; `/codelabgen:status`.
-- M7 (hardening): `node`, `go` and `rust` runtimes next to `python-uv` (scaffold, verify, run.sh, recordings, checks, extensions), per-runtime code-authoring and runtime-strategy references, `codelabgen eval` (rubric + human review sheet), plugin hooks (state-file guard, subagent log).
-- M6 (extension): `extend start/status/stage/diff/apply/finish` (lessons matched by slug path; rewrite, stale propagation, opt-in renumbering that moves directories, packages, specs, runs and links), `sources keep-proposed`, `curriculum number/validate --file`, `services up/down/status`, per-course service ports with a published-port check in verify; gap-analyst agent, course-extension skill, extend modes for the architect and runtime planner; `/codelabgen:extend`.
-- M5 (orchestration and resume): `state next` for every phase (from state and files on disk), `state task start/done/fail/reset/list` with interruption detection, `report`, `parallel_agents` budget; the orchestrator skill rewritten around one main loop; `/codelabgen:resume`.
-- M4 (curriculum): `topics add/merge`, `sources digests/batches/index`, `curriculum number/render`, `config set runtime.*`, `config external add/clear`, custom services in `.codelabgen/services.yaml`; topic-extractor, curriculum-architect and runtime-planner agents; topic-extraction, source-digest, curriculum-design and runtime-strategy skills; `/codelabgen:plan`. Every phase is now covered.
-- M3 (research): `fetch` (HTML/Markdown/PDF cache), `llms-txt`, `transcript`, `pkg-info`, `repo clone` (pinned-version tag), `github meta/repos/code/issues`, `sources add/list/render/apply`, `config`; tech-scout and source-hunter agents; source-evaluation and ten source-type skills; `/codelabgen:new`, `/codelabgen:sources`.
-- M2 (assembly and visuals): `toc` (READMEs, nav, `run.sh`), `site build/serve`, `glossary`, `diagrams render`, `record`, `check all`, `commit`; the `site-assembly` skill; `/codelabgen:build`.
-- M1 (lesson pipeline): `curriculum`, `scaffold`, `verify`, `snippets`, `check snippets`, `env`; six lesson agents and their skills; the orchestrator skill (lesson production); `/codelabgen:lesson`. Test course: `tests/fixtures/make-m1-course.sh <dir>`.

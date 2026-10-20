@@ -125,7 +125,7 @@
       "type": "string"
     },
     "Stage": {
-      "description": "The last completed stage of a lesson (PLAN.md \u00a72).",
+      "description": "The last completed stage of a lesson.",
       "enum": [
         "pending",
         "spec",

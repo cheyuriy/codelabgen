@@ -1,7 +1,7 @@
 """Pydantic models for every data file codelabgen reads or writes.
 
-These are the data contracts from PLAN.md §5. JSON Schemas exported from them
-(`codelabgen schema export`) are what the agents follow.
+These are the data contracts. JSON Schemas exported from them (`codelabgen schema export`)
+are what the agents follow.
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ GATES = {Phase.GATE_SOURCES, Phase.GATE_PLAN}
 
 
 class Stage(StrEnum):
-    """The last completed stage of a lesson (PLAN.md §2)."""
+    """The last completed stage of a lesson."""
 
     PENDING = "pending"
     SPEC = "spec"

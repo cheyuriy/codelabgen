@@ -1,4 +1,4 @@
-"""Code regions copied into Markdown (PLAN.md §3.4).
+"""Code regions copied into Markdown.
 
 In code, a region is marked with comment lines in the file's comment syntax:
 

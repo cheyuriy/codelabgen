@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Prepare the hand-written M1 LangGraph course for testing the lesson pipeline.
-# Usage: tests/fixtures/make-m1-course.sh <target-dir>
+# Prepare the hand-written LangGraph test course for testing the lesson pipeline.
+# Usage: tests/fixtures/make-test-course.sh <target-dir>
 # Then, in Claude Code started with the plugin: /codelabgen:lesson all --course <target-dir>
 set -euo pipefail
 
@@ -12,7 +12,7 @@ cp "$here/langgraph-curriculum.yaml" "$target/.codelabgen/curriculum.yaml"
 export CODELABGEN_COURSE=$target
 
 codelabgen curriculum validate
-# Research and curriculum phases don't exist yet (M3, M4): walk through them.
+# The curriculum is hand-written: skip the research and curriculum phases.
 for phase in recon sources gate_sources; do codelabgen state phase "$phase"; done
 codelabgen state phase topics --approved
 for phase in curriculum gate_plan; do codelabgen state phase "$phase"; done

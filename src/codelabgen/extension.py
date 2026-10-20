@@ -1,4 +1,4 @@
-"""Extending a finished course: deepen a topic or add new ones (PLAN.md §2.1).
+"""Extending a finished course: deepen a topic or add new ones.
 
 An extension lives in `.codelabgen/extensions/<n>/`:
 
